@@ -27,6 +27,8 @@ from .embeds import (
     trading_rules_embed,
     wipe_info_embed,
 )
+from .role_selection import RoleSelectionView, role_selection_embed as interactive_role_selection_embed
+from .tickets import TicketPanelView
 
 logger = logging.getLogger(__name__)
 
@@ -217,13 +219,18 @@ async def _get_or_create_voice_channel(
     return await category.create_voice_channel(name, reason="RAVN Server Manager setup")
 
 
-async def _seed_embed(channel: discord.TextChannel, embed: discord.Embed) -> bool:
+async def _seed_embed(
+    channel: discord.TextChannel,
+    embed: discord.Embed,
+    view: discord.ui.View | None = None,
+) -> bool:
     marker = "RAVN Server Manager"
     try:
         async for message in channel.history(limit=30):
             if message.author == channel.guild.me and message.embeds and message.embeds[0].footer.text == marker:
-                return False
-        await channel.send(embed=embed)
+                await message.edit(embed=embed, view=view)
+                return True
+        await channel.send(embed=embed, view=view)
         return True
     except (discord.Forbidden, discord.HTTPException):
         logger.warning("Could not seed channel %s", channel.name)
@@ -270,13 +277,13 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
         for channel_name in channel_names:
             await _get_or_create_voice_channel(category, channel_name, result)
 
-    embeds_by_channel: dict[str, discord.Embed] = {
+    embeds_by_channel: dict[str, tuple[discord.Embed, discord.ui.View | None]] = {
         "📜・server-rules": rules_embed(),
         "📌・server-info": server_info_embed(guild),
-        "🎭・role-selection": role_selection_embed(),
+        "🎭・role-selection": (interactive_role_selection_embed(), RoleSelectionView()),
         "📢・tribe-recruitment": recruitment_embed(),
         "💰・trade-chat": trading_rules_embed(),
-        "🎫・create-ticket": ticket_info_embed(),
+        "🎫・create-ticket": (ticket_info_embed(), TicketPanelView()),
         "🚨・player-report": reports_embed(),
         "📢・announcements": announcements_embed(
             "Welcome to RAVN",
@@ -284,10 +291,11 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
         ),
         "📅・wipe-info": wipe_info_embed(),
     }
-    for channel_name, embed in embeds_by_channel.items():
+    for channel_name, panel in embeds_by_channel.items():
+        embed, view = panel if isinstance(panel, tuple) else (panel, None)
         for category in categories.values():
             channel = discord.utils.find(lambda item: item.name == channel_name, category.text_channels)
-            if channel and await _seed_embed(channel, embed):
+            if channel and await _seed_embed(channel, embed, view):
                 result.messages_seeded += 1
                 break
     return result

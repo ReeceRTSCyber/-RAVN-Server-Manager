@@ -89,17 +89,18 @@ def welcome_embed(member: discord.Member) -> discord.Embed:
 
 def role_selection_embed() -> discord.Embed:
     embed = ravn_embed(
-        "🎭 Choose your roles",
-        "Ask a staff member if you need a role changed. Notification roles are opt-in and can be removed at any time.",
+        "🎭 Choose Your Roles",
+        "Select one platform and any notification roles you want. Changing a selection automatically "
+        "adds and removes only the self-assignable roles below.",
     )
     embed.add_field(
-        name="Platforms",
-        value="🎮 PC  •  🎮 Xbox  •  🎮 PlayStation",
+        name="Platform",
+        value="Choose one: 🎮 PC, 🎮 Xbox, or 🎮 PlayStation.",
         inline=False,
     )
     embed.add_field(
         name="Notifications",
-        value="📢 Announcements  •  ⚔️ PvP  •  💀 Raids  •  🦖 Bosses  •  💰 Trading  •  🎉 Events",
+        value="Choose any: 📢 Announcements, ⚔️ PvP, 💀 Raids, 🦖 Bosses, 💰 Trading, or 🎉 Events.",
         inline=False,
     )
     return embed
@@ -133,8 +134,9 @@ def trading_rules_embed() -> discord.Embed:
 
 def ticket_info_embed() -> discord.Embed:
     return ravn_embed(
-        "🎫 RAVN Support",
-        "Choose the ticket type that best matches your request. A private channel will be created for you and the support team.",
+        "🎫 RAVN SUPPORT CENTRE",
+        "Choose the ticket type that best matches your request. A private ticket will be created "
+        "under Support for you and the appropriate staff team.",
     )
 
 

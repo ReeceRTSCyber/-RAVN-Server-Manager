@@ -35,9 +35,15 @@ def _ticket_logs(guild: discord.Guild) -> discord.TextChannel | None:
 
 
 async def _transcript(channel: discord.TextChannel) -> discord.File:
+    metadata = _ticket_metadata(channel)
     lines: list[str] = [
         f"RAVN ticket transcript: #{channel.name}",
-        f"Generated: {datetime.now(timezone.utc).isoformat()}",
+        f"Ticket creator: {metadata.get('ticket_creator', 'Unknown')}",
+        f"Ticket type: {metadata.get('type', 'Unknown')}",
+        f"Ticket channel: {channel.name}",
+        f"Claimed by: {metadata.get('claimed_by', 'Unclaimed')}",
+        f"Created time: {metadata.get('created_at', 'Unknown')}",
+        f"Closed time: {datetime.now(timezone.utc).isoformat()}",
         "-" * 72,
     ]
     messages = [message async for message in channel.history(limit=None, oldest_first=True)]
@@ -50,15 +56,25 @@ async def _transcript(channel: discord.TextChannel) -> discord.File:
     return discord.File(io.BytesIO(payload), filename=f"{channel.name}-transcript.txt")
 
 
+def _ticket_metadata(channel: discord.TextChannel) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for item in (channel.topic or "").split(";"):
+        if ":" not in item:
+            continue
+        key, value = item.split(":", 1)
+        values[key] = value
+    if owner_id := values.get("ticket_owner"):
+        values["ticket_creator"] = f"<@{owner_id}>"
+    if claimed_id := values.get("claimed_by"):
+        values["claimed_by"] = "Unclaimed" if claimed_id == "unclaimed" else f"<@{claimed_id}>"
+    return values
+
+
 async def _find_ticket_category(guild: discord.Guild) -> discord.CategoryChannel:
-    category = discord.utils.get(guild.categories, name="🎫 TICKETS")
+    category = discord.utils.get(guild.categories, name="🎫 SUPPORT")
     if category:
         return category
-    return await guild.create_category(
-        "🎫 TICKETS",
-        overwrites={guild.default_role: discord.PermissionOverwrite(view_channel=False)},
-        reason="RAVN ticket system",
-    )
+    raise LookupError("The 🎫 SUPPORT category is missing. Run /setup-server first.")
 
 
 async def create_ticket(interaction: discord.Interaction, ticket_type: str) -> None:
@@ -66,8 +82,13 @@ async def create_ticket(interaction: discord.Interaction, ticket_type: str) -> N
         await interaction.response.send_message("Tickets can only be opened inside a server.", ephemeral=True)
         return
 
-    category = await _find_ticket_category(interaction.guild)
-    marker = f"ticket_owner:{interaction.user.id}"
+    try:
+        category = await _find_ticket_category(interaction.guild)
+    except LookupError as exc:
+        await interaction.response.send_message(str(exc), ephemeral=True)
+        return
+
+    marker = f"ticket_owner:{interaction.user.id};type:{ticket_type}"
     existing = discord.utils.find(
         lambda channel: isinstance(channel, discord.TextChannel)
         and channel.category_id == category.id
@@ -75,9 +96,9 @@ async def create_ticket(interaction: discord.Interaction, ticket_type: str) -> N
         and marker in channel.topic,
         interaction.guild.channels,
     )
-    if existing:
+    if existing and "state:closed" not in (existing.topic or ""):
         await interaction.response.send_message(
-            f"You already have an open ticket: {existing.mention}",
+            f"You already have an open {TICKET_TYPES[ticket_type][0]} ticket: {existing.mention}",
             ephemeral=True,
         )
         return
@@ -91,21 +112,30 @@ async def create_ticket(interaction: discord.Interaction, ticket_type: str) -> N
             read_message_history=True,
         ),
     }
-    for role in interaction.guild.roles:
-        if role.name in STAFF_ROLE_NAMES:
-            overwrites[role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True,
-                manage_messages=True,
-            )
+    staff_roles = [role for role in interaction.guild.roles if role.name in STAFF_ROLE_NAMES]
+    if not staff_roles:
+        await interaction.response.send_message(
+            "No staff roles were found. Ask an administrator to run `/setup-server` first.",
+            ephemeral=True,
+        )
+        return
+    for role in staff_roles:
+        overwrites[role] = discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            manage_messages=True,
+        )
 
     label, description = TICKET_TYPES[ticket_type]
     safe_name = re.sub(r"[^a-z0-9-]+", "-", interaction.user.display_name.lower()).strip("-")[:35]
     channel = await category.create_text_channel(
         f"ticket-{ticket_type}-{safe_name or interaction.user.id}",
         overwrites=overwrites,
-        topic=f"{marker};type:{ticket_type}",
+        topic=(
+            f"{marker};state:open;claimed_by:unclaimed;"
+            f"created_at:{datetime.now(timezone.utc).isoformat()}"
+        ),
         reason=f"RAVN {ticket_type} ticket",
     )
     embed = ravn_embed(
@@ -177,9 +207,17 @@ class TicketControlView(discord.ui.View):
         for target in list(overwrites):
             if isinstance(target, discord.Member):
                 overwrites[target] = discord.PermissionOverwrite(view_channel=True, send_messages=False)
+        metadata = _ticket_metadata(interaction.channel)
+        claimed_by = metadata.get("claimed_by", "unclaimed").replace("<@", "").replace(">", "")
+        closed_topic = (
+            f"ticket_owner:{metadata.get('ticket_owner', 'unknown')};"
+            f"type:{metadata.get('type', 'unknown')};state:closed;"
+            f"claimed_by:{claimed_by};created_at:{metadata.get('created_at', 'unknown')}"
+        )
         await interaction.channel.edit(
             name=f"closed-{interaction.channel.name}"[:100],
             overwrites=overwrites,
+            topic=closed_topic,
             reason=f"Ticket closed by {interaction.user}",
         )
         await interaction.followup.send("Ticket closed. A transcript was sent to the ticket logs.")
@@ -192,6 +230,16 @@ class TicketControlView(discord.ui.View):
             await interaction.response.send_message("Only staff can claim a ticket.", ephemeral=True)
             return
         if isinstance(interaction.channel, discord.TextChannel):
+            metadata = _ticket_metadata(interaction.channel)
+            await interaction.channel.edit(
+                topic=(
+                    f"ticket_owner:{metadata.get('ticket_owner', 'unknown')};"
+                    f"type:{metadata.get('type', 'unknown')};state:open;"
+                    f"claimed_by:{interaction.user.id};"
+                    f"created_at:{metadata.get('created_at', 'unknown')}"
+                ),
+                reason=f"Ticket claimed by {interaction.user}",
+            )
             await interaction.channel.send(
                 embed=ravn_embed(
                     "👤 Ticket claimed",

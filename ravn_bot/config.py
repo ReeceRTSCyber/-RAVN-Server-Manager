@@ -44,6 +44,15 @@ ROLE_GROUPS: dict[str, list[str]] = {
 }
 
 ROLE_NAMES = [role for group in ROLE_GROUPS.values() for role in group]
+PLATFORM_ROLE_NAMES = ["🎮 PC", "🎮 Xbox", "🎮 PlayStation"]
+NOTIFICATION_ROLE_NAMES = [
+    "📢 Announcements",
+    "⚔️ PvP",
+    "💀 Raids",
+    "🦖 Bosses",
+    "💰 Trading",
+    "🎉 Events",
+]
 
 CATEGORY_CHANNELS: dict[str, list[str]] = {
     "📜 INFORMATION": [

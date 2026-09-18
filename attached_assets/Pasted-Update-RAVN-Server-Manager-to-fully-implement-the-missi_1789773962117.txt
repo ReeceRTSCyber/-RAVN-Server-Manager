@@ -1,0 +1,126 @@
+Update RAVN Server Manager to fully implement the missing interactive systems.
+
+1. ROLE SELECTION
+
+The 🎭・role-selection channel must contain a professional embed with actual Discord buttons/select menus.
+
+Create a Discord dropdown/select menu called Choose Your Roles.
+
+Allow members to select:
+
+PLATFORM:
+
+* 🎮 PC
+* 🎮 Xbox
+* 🎮 PlayStation
+
+NOTIFICATION ROLES:
+
+* 📢 Announcements
+* ⚔️ PvP
+* 💀 Raids
+* 🦖 Bosses
+* 💰 Trading
+* 🎉 Events
+
+The bot must automatically add/remove the selected roles when a member changes their selection.
+
+Do NOT require administrators to manually give these roles.
+
+Only allow members to select the roles intended for self-assignment. Do not allow members to select staff, management or other restricted roles.
+
+Make the role-selection embed persistent so the buttons/select menu continue working after the bot restarts.
+
+2. FULL TICKET SYSTEM
+
+Implement a proper persistent ticket system.
+
+In 🎫・create-ticket, create an embed titled:
+
+🎫 RAVN SUPPORT CENTRE
+
+Description explaining that users should select the appropriate ticket type.
+
+Add persistent buttons:
+
+🎫 Support
+🚨 Player Report
+🛡️ Staff Report
+💰 Donation Support
+🔧 Technical Support
+
+When a user clicks a button:
+
+1. Create a private ticket channel under the SUPPORT category.
+2. Give the ticket creator access.
+3. Give the appropriate staff roles access.
+4. Deny access to @everyone.
+5. Prevent users from creating multiple open tickets of the same type.
+6. Send a welcome embed inside the ticket.
+7. Add buttons:
+    * 👤 Claim
+    * 🔒 Close
+    * 🗑️ Delete
+
+3. TICKET TRANSCRIPTS
+
+When a ticket is closed, create a transcript containing the ticket messages.
+
+Send the transcript to 🎫・ticket-logs.
+
+Include:
+
+* Ticket creator
+* Ticket type
+* Ticket channel
+* Claimed by
+* Created time
+* Closed time
+
+4. PERSISTENCE
+
+Buttons and dropdowns must continue working after the bot restarts.
+
+Use persistent discord.ui.View components with stable custom_id values.
+
+Register the persistent views when the bot starts.
+
+5. DUPLICATE PROTECTION
+
+The setup system must remain idempotent.
+
+Running /setup-server multiple times must NOT duplicate:
+
+* Roles
+* Categories
+* Channels
+* Embed panels
+
+If an existing object is found, reuse it.
+
+6. SETUP EMBEDS
+
+Make /setup-server automatically post the role-selection embed into:
+
+🎭・role-selection
+
+and the ticket panel into:
+
+🎫・create-ticket
+
+If an existing panel message is found, update/reuse it rather than creating duplicates.
+
+7. ERROR HANDLING
+
+Add clear error handling for:
+
+* Missing permissions
+* Missing roles
+* Missing channels
+* Invalid interactions
+* Bot role being below a managed role
+* Discord API errors
+
+Do not expose the bot token or any environment variables.
+
+After making these changes, run Python compilation checks and verify that all persistent views and slash commands register successfully.
