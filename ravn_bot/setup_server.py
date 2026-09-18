@@ -10,6 +10,8 @@ from .config import (
     INFO_CHANNELS,
     MANAGEMENT_ROLE_NAMES,
     PRIVATE_CATEGORIES,
+    REMOVED_CATEGORIES,
+    REMOVED_CHANNELS,
     ROLE_GROUPS,
     ROLE_NAMES,
     STAFF_ROLE_NAMES,
@@ -39,6 +41,9 @@ class SetupResult:
     categories_created: int = 0
     channels_created: int = 0
     messages_seeded: int = 0
+    channels_removed: int = 0
+    categories_removed: int = 0
+    cleanup_failures: int = 0
 
 
 def _role(guild: discord.Guild, name: str) -> discord.Role | None:
@@ -219,6 +224,66 @@ async def _get_or_create_voice_channel(
     return await category.create_voice_channel(name, reason="RAVN Server Manager setup")
 
 
+async def _remove_legacy_content(guild: discord.Guild, result: SetupResult) -> None:
+    """Remove only channels/categories explicitly retired from the layout."""
+    bot_member = guild.me
+    if not bot_member:
+        result.cleanup_failures += 1
+        logger.error("Cannot clean retired content in guild %s: bot member unavailable", guild.id)
+        return
+
+    for category_name in REMOVED_CATEGORIES:
+        category = discord.utils.get(guild.categories, name=category_name)
+        if not category:
+            continue
+        for channel in list(category.channels):
+            try:
+                if not channel.permissions_for(bot_member).manage_channels:
+                    result.cleanup_failures += 1
+                    continue
+                await channel.delete(reason="RAVN Server Manager retired channel cleanup")
+                result.channels_removed += 1
+            except discord.Forbidden:
+                result.cleanup_failures += 1
+                logger.warning("Missing permission to remove retired channel %s", channel.name)
+            except discord.HTTPException:
+                result.cleanup_failures += 1
+                logger.exception("Discord API error removing retired channel %s", channel.name)
+        try:
+            if category.permissions_for(bot_member).manage_channels:
+                await category.delete(reason="RAVN Server Manager retired category cleanup")
+                result.categories_removed += 1
+            else:
+                result.cleanup_failures += 1
+        except discord.Forbidden:
+            result.cleanup_failures += 1
+            logger.warning("Missing permission to remove retired category %s", category.name)
+        except discord.HTTPException:
+            result.cleanup_failures += 1
+            logger.exception("Discord API error removing retired category %s", category.name)
+
+    for category_name, channel_names in REMOVED_CHANNELS.items():
+        category = discord.utils.get(guild.categories, name=category_name)
+        if not category:
+            continue
+        for channel_name in channel_names:
+            channel = discord.utils.find(lambda item: item.name == channel_name, category.channels)
+            if not channel:
+                continue
+            try:
+                if not channel.permissions_for(bot_member).manage_channels:
+                    result.cleanup_failures += 1
+                    continue
+                await channel.delete(reason="RAVN Server Manager retired channel cleanup")
+                result.channels_removed += 1
+            except discord.Forbidden:
+                result.cleanup_failures += 1
+                logger.warning("Missing permission to remove retired channel %s", channel.name)
+            except discord.HTTPException:
+                result.cleanup_failures += 1
+                logger.exception("Discord API error removing retired channel %s", channel.name)
+
+
 async def _seed_embed(
     channel: discord.TextChannel,
     embed: discord.Embed,
@@ -239,6 +304,7 @@ async def _seed_embed(
 
 async def provision_guild(guild: discord.Guild) -> SetupResult:
     result = SetupResult()
+    await _remove_legacy_content(guild, result)
     roles = await ensure_roles(guild, result)
     categories: dict[str, discord.CategoryChannel] = {}
 
@@ -312,11 +378,20 @@ def setup_command(bot: discord.Client) -> None:
             return
         try:
             result = await provision_guild(interaction.guild)
-            await interaction.followup.send(
+            cleanup_note = (
+                f"{result.cleanup_failures} retired objects could not be removed. "
+                if result.cleanup_failures
+                else ""
+            )
+            summary = (
                 "Server setup complete. "
                 f"Created {result.roles_created} roles, {result.categories_created} categories, "
-                f"{result.channels_created} channels, and seeded {result.messages_seeded} embeds. "
-                "Existing objects were preserved.",
+                f"{result.channels_created} channels, removed {result.channels_removed} retired channels and "
+                f"{result.categories_removed} retired categories, and seeded {result.messages_seeded} embeds. "
+                f"{cleanup_note}Existing objects were preserved."
+            )
+            await interaction.followup.send(
+                summary,
                 ephemeral=True,
             )
         except discord.Forbidden:

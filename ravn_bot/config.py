@@ -74,59 +74,16 @@ CATEGORY_CHANNELS: dict[str, list[str]] = {
         "🗳️・polls",
         "🤖・bot-commands",
     ],
-    "⚔️ ARK PVP": [
-        "🔥・pvp-chat",
-        "⚔️・war-room",
-        "🚨・raid-alerts",
-        "💀・raid-reports",
-        "🏰・base-showcase",
-        "🧱・base-designs",
-        "🔫・weapon-loadouts",
-        "🦖・dino-meta",
-        "💣・raid-meta",
-        "🛡️・defence",
-    ],
     "🏹 TRIBE RECRUITMENT": [
         "📢・tribe-recruitment",
         "🔎・looking-for-tribe",
         "👥・looking-for-players",
         "📝・recruitment-applications",
-        "🏆・tribe-rosters",
         "📊・tribe-stats",
     ],
     "💰 TRADING": [
         "💰・trade-chat",
-        "🦖・dino-trading",
-        "🧬・mutations",
-        "🔫・weapon-trading",
-        "🛡️・armour-trading",
-        "💎・resource-trading",
         "🏷️・trade-vouches",
-        "🚨・trade-alerts",
-    ],
-    "🧬 BREEDING": [
-        "🧬・breeding-chat",
-        "🥚・egg-trading",
-        "🧬・mutation-lines",
-        "📊・stat-checks",
-        "🦖・dino-lines",
-        "🏆・top-lines",
-    ],
-    "💀 BOSSES & PROGRESSION": [
-        "🦖・boss-chat",
-        "⚔️・boss-teams",
-        "🗺️・artifact-locations",
-        "🦴・tribute-farming",
-        "🏆・ascension",
-    ],
-    "🏰 FOB & RAID ORGANISATION": [
-        "📍・fob-coordinates",
-        "🏗️・fob-builds",
-        "🛡️・fob-defence",
-        "🚀・raid-planning",
-        "💣・raid-targets",
-        "📋・raid-checklists",
-        "🏆・raid-results",
     ],
     "🎫 SUPPORT": [
         "🎫・create-ticket",
@@ -163,26 +120,32 @@ VOICE_CATEGORIES: dict[str, list[str]] = {
         "🎮・Gaming 2",
         "🎮・Gaming 3",
     ],
-    "⚔️ PVP VOICE": [
-        "⚔️・PvP 1",
-        "⚔️・PvP 2",
-        "💀・Raid Room 1",
-        "💀・Raid Room 2",
-        "🏗️・FOB Room",
-        "🛡️・Defence Room",
-    ],
-    "👥 TRIBES VOICE": [
-        "👑・Tribe Leaders",
-        "🔥・Tribe 1",
-        "🔥・Tribe 2",
-        "🔥・Tribe 3",
-        "🔥・Tribe 4",
-    ],
     "🎵 OTHER VOICE": ["🎵・Music", "💤・AFK"],
 }
 
 PRIVATE_CATEGORIES = {"🔒 STAFF", "👑 MANAGEMENT"}
 INFO_CHANNELS = {"📜 INFORMATION"}
+
+# Retired layout objects are removed by the next administrator-run /setup-server.
+REMOVED_CATEGORIES = {
+    "⚔️ ARK PVP",
+    "🧬 BREEDING",
+    "💀 BOSSES & PROGRESSION",
+    "🏰 FOB & RAID ORGANISATION",
+    "⚔️ PVP VOICE",
+    "👥 TRIBES VOICE",
+}
+REMOVED_CHANNELS = {
+    "💰 TRADING": {
+        "🦖・dino-trading",
+        "🧬・mutations",
+        "🔫・weapon-trading",
+        "🛡️・armour-trading",
+        "💎・resource-trading",
+        "🚨・trade-alerts",
+    },
+    "🏹 TRIBE RECRUITMENT": {"🏆・tribe-rosters"},
+}
 
 
 @dataclass(frozen=True)
