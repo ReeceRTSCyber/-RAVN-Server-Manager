@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from .clear_server import register as register_clear_server
 from .config import load_settings
 from .features import register as register_features
 from .moderation import register as register_moderation
@@ -84,6 +85,7 @@ def create_bot() -> tuple[RavnBot, str]:
     register_role_selection(bot)
     register_moderation(bot)
     register_features(bot)
+    register_clear_server(bot)
     return bot, settings.token
 
 
