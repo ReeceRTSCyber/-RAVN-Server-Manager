@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import logging
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+from .config import load_settings
+from .features import register as register_features
+from .moderation import register as register_moderation
+from .setup_server import setup_command
+from .tickets import register as register_tickets
+
+
+class RavnBot(commands.Bot):
+    def __init__(self, settings) -> None:
+        intents = discord.Intents.default()
+        intents.members = True
+        super().__init__(
+            command_prefix=commands.when_mentioned,
+            intents=intents,
+            description="RAVN Server Manager for ARK Survival Ascended PvP communities.",
+        )
+        self.settings = settings
+
+    async def setup_hook(self) -> None:
+        if self.settings.guild_id:
+            guild = discord.Object(id=self.settings.guild_id)
+            self.tree.copy_global_to(guild=guild)
+            synced = await self.tree.sync(guild=guild)
+            logging.getLogger(__name__).info(
+                "Synced %s commands to configured guild %s",
+                len(synced),
+                self.settings.guild_id,
+            )
+        else:
+            synced = await self.tree.sync()
+            logging.getLogger(__name__).info("Synced %s global commands", len(synced))
+
+    async def on_ready(self) -> None:
+        logging.getLogger(__name__).info(
+            "RAVN Server Manager online as %s in %s guild(s)",
+            self.user,
+            len(self.guilds),
+        )
+
+    async def on_member_join(self, member: discord.Member) -> None:
+        channel = discord.utils.get(member.guild.text_channels, name="💬・general")
+        if channel:
+            from .embeds import welcome_embed
+
+            await channel.send(embed=welcome_embed(member))
+
+    async def on_app_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        if isinstance(error, app_commands.MissingPermissions):
+            message = "You do not have permission to use this command."
+        elif isinstance(error, app_commands.CommandOnCooldown):
+            message = "That command is temporarily rate-limited. Try again shortly."
+        else:
+            logging.getLogger(__name__).exception("Application command failed", exc_info=error)
+            message = "Something went wrong while running that command."
+
+        if interaction.response.is_done():
+            await interaction.followup.send(message, ephemeral=True)
+        else:
+            await interaction.response.send_message(message, ephemeral=True)
+
+
+def create_bot() -> tuple[RavnBot, str]:
+    settings = load_settings()
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level, logging.INFO),
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    )
+    bot = RavnBot(settings)
+    setup_command(bot)
+    register_tickets(bot)
+    register_moderation(bot)
+    register_features(bot)
+    return bot, settings.token
+
+
+def run() -> None:
+    bot, token = create_bot()
+    bot.run(token, log_handler=None)
+
+
+if __name__ == "__main__":
+    run()
