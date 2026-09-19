@@ -8,6 +8,7 @@ from discord.ext import commands
 
 from .clear_server import register as register_clear_server
 from .config import load_settings
+from .embeds import brand_embed, bot_avatar_url, welcome_embed
 from .features import register as register_features
 from .moderation import register as register_moderation
 from .role_selection import register as register_role_selection
@@ -50,9 +51,7 @@ class RavnBot(commands.Bot):
     async def on_member_join(self, member: discord.Member) -> None:
         channel = discord.utils.get(member.guild.text_channels, name="💬・general")
         if channel:
-            from .embeds import welcome_embed
-
-            await channel.send(embed=welcome_embed(member))
+            await channel.send(embed=brand_embed(welcome_embed(member), bot_avatar_url(self)))
 
     async def on_app_command_error(
         self,

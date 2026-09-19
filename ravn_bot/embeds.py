@@ -29,6 +29,18 @@ def ravn_embed(
     return embed
 
 
+def brand_embed(embed: discord.Embed, image_url: str | None) -> discord.Embed:
+    """Add the RAVN artwork as a Discord-renderable embed thumbnail."""
+    if image_url:
+        embed.set_thumbnail(url=image_url)
+    return embed
+
+
+def bot_avatar_url(client: discord.Client) -> str | None:
+    """Return the configured bot avatar URL, which Discord can fetch directly."""
+    return str(client.user.display_avatar.url) if client.user else None
+
+
 def rules_embed() -> discord.Embed:
     embed = ravn_embed(
         "📜 RAVN Server Rules",
@@ -135,8 +147,8 @@ def trading_rules_embed() -> discord.Embed:
 def ticket_info_embed() -> discord.Embed:
     return ravn_embed(
         "🎫 RAVN SUPPORT CENTRE",
-        "Choose the ticket type that best matches your request. A private ticket will be created "
-        "under Support for you and the appropriate staff team.",
+        "Choose the ticket type that best matches your request, then complete the required form "
+        "with your name, map/server, and reason before a private ticket is created.",
     )
 
 

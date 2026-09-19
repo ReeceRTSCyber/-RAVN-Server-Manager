@@ -1,0 +1,1 @@
+- [Discord embed assets](discord-embed-assets.md) — attachment-based thumbnails must reattach the file when editing seeded messages; bot avatar URLs are safe for dynamic embeds.

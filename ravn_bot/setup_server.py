@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 import discord
 
@@ -20,19 +21,31 @@ from .config import (
 )
 from .embeds import (
     announcements_embed,
+    brand_embed,
     recruitment_embed,
     reports_embed,
-    role_selection_embed,
     rules_embed,
     server_info_embed,
     ticket_info_embed,
     trading_rules_embed,
     wipe_info_embed,
 )
-from .role_selection import RoleSelectionView, role_selection_embed as interactive_role_selection_embed
+from .role_selection import (
+    MiscRoleView,
+    PingRoleView,
+    misc_roles_embed,
+    ping_roles_embed,
+)
 from .tickets import TicketPanelView
 
 logger = logging.getLogger(__name__)
+
+LOGO_ASSET_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "attached_assets"
+    / "IMG_0975_1789776307339.png"
+)
+LOGO_FILENAME = "ravn-logo.png"
 
 
 @dataclass
@@ -288,14 +301,40 @@ async def _seed_embed(
     channel: discord.TextChannel,
     embed: discord.Embed,
     view: discord.ui.View | None = None,
+    *,
+    titles: set[str] | None = None,
+    image_url: str | None = None,
+    image_path: Path | None = None,
 ) -> bool:
     marker = "RAVN Server Manager"
+    embed = brand_embed(embed, image_url)
+
+    def _logo_file() -> discord.File | None:
+        if not image_path or not image_path.is_file():
+            return None
+        return discord.File(str(image_path), filename=LOGO_FILENAME)
+
     try:
         async for message in channel.history(limit=30):
-            if message.author == channel.guild.me and message.embeds and message.embeds[0].footer.text == marker:
-                await message.edit(embed=embed, view=view)
+            if (
+                message.author == channel.guild.me
+                and message.embeds
+                and message.embeds[0].footer.text
+                and marker in message.embeds[0].footer.text
+                and (titles is None or message.embeds[0].title in titles)
+            ):
+                edit_kwargs: dict[str, object] = {"embed": embed, "view": view}
+                if image_path:
+                    logo_file = _logo_file()
+                    if logo_file:
+                        edit_kwargs["attachments"] = [logo_file]
+                await message.edit(**edit_kwargs)
                 return True
-        await channel.send(embed=embed, view=view)
+        logo_file = _logo_file()
+        if logo_file:
+            await channel.send(embed=embed, view=view, file=logo_file)
+        else:
+            await channel.send(embed=embed, view=view)
         return True
     except (discord.Forbidden, discord.HTTPException):
         logger.warning("Could not seed channel %s", channel.name)
@@ -346,7 +385,6 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     embeds_by_channel: dict[str, tuple[discord.Embed, discord.ui.View | None]] = {
         "📜・server-rules": rules_embed(),
         "📌・server-info": server_info_embed(guild),
-        "🎭・role-selection": (interactive_role_selection_embed(), RoleSelectionView()),
         "📢・tribe-recruitment": recruitment_embed(),
         "💰・trade-chat": trading_rules_embed(),
         "🎫・create-ticket": (ticket_info_embed(), TicketPanelView()),
@@ -357,13 +395,46 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
         ),
         "📅・wipe-info": wipe_info_embed(),
     }
+    bot_image_url = str(guild.me.display_avatar.url) if guild.me else None
+    setup_image_url = "attachment://ravn-logo.png" if LOGO_ASSET_PATH.is_file() else bot_image_url
+    setup_image_path = LOGO_ASSET_PATH if LOGO_ASSET_PATH.is_file() else None
     for channel_name, panel in embeds_by_channel.items():
         embed, view = panel if isinstance(panel, tuple) else (panel, None)
         for category in categories.values():
             channel = discord.utils.find(lambda item: item.name == channel_name, category.text_channels)
-            if channel and await _seed_embed(channel, embed, view):
+            if channel and await _seed_embed(
+                channel,
+                embed,
+                view,
+                image_url=setup_image_url,
+                image_path=setup_image_path,
+            ):
                 result.messages_seeded += 1
                 break
+
+    role_channel = discord.utils.find(
+        lambda item: item.name == "🎭・role-selection",
+        guild.text_channels,
+    )
+    if role_channel:
+        if await _seed_embed(
+            role_channel,
+            ping_roles_embed(),
+            PingRoleView(),
+            titles={"PING ROLES", "🎭 Choose Your Roles"},
+            image_url=setup_image_url,
+            image_path=setup_image_path,
+        ):
+            result.messages_seeded += 1
+        if await _seed_embed(
+            role_channel,
+            misc_roles_embed(),
+            MiscRoleView(),
+            titles={"MISC ROLES"},
+            image_url=setup_image_url,
+            image_path=setup_image_path,
+        ):
+            result.messages_seeded += 1
     return result
 
 

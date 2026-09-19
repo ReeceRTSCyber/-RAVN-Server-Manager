@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import discord
 
 from .config import STAFF_ROLE_NAMES
-from .embeds import ARK_BLUE, DANGER, SUCCESS, ravn_embed, ticket_info_embed
+from .embeds import ARK_BLUE, DANGER, SUCCESS, brand_embed, bot_avatar_url, ravn_embed, ticket_info_embed
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,11 @@ async def _find_ticket_category(guild: discord.Guild) -> discord.CategoryChannel
     raise LookupError("The 🎫 SUPPORT category is missing. Run /setup-server first.")
 
 
-async def create_ticket(interaction: discord.Interaction, ticket_type: str) -> None:
+async def create_ticket(
+    interaction: discord.Interaction,
+    ticket_type: str,
+    details: dict[str, str],
+) -> None:
     if not interaction.guild or not isinstance(interaction.user, discord.Member):
         await interaction.response.send_message("Tickets can only be opened inside a server.", ephemeral=True)
         return
@@ -144,13 +148,59 @@ async def create_ticket(interaction: discord.Interaction, ticket_type: str) -> N
         colour=ARK_BLUE,
     )
     embed.add_field(name="Opened by", value=interaction.user.mention, inline=True)
+    embed.add_field(name="Name / tribe / player", value=details["name"], inline=True)
+    embed.add_field(name="Map / server", value=details["map"], inline=True)
+    embed.add_field(name="Reason / details", value=details["reason"], inline=False)
     embed.add_field(name="Next step", value="Use the controls below to claim or close this ticket.", inline=True)
     await channel.send(
         content=interaction.user.mention,
-        embed=embed,
+        embed=brand_embed(embed, bot_avatar_url(interaction.client)),
         view=TicketControlView(),
     )
     await interaction.response.send_message(f"Your private ticket is ready: {channel.mention}", ephemeral=True)
+
+
+class TicketDetailsModal(discord.ui.Modal):
+    def __init__(self, ticket_type: str) -> None:
+        label, _description = TICKET_TYPES[ticket_type]
+        super().__init__(title=f"{label} details"[:45])
+        self.ticket_type = ticket_type
+        self.name_input = discord.ui.TextInput(
+            label="Name / tribe / player",
+            placeholder="Who is this ticket about?",
+            max_length=100,
+            required=True,
+        )
+        self.map_input = discord.ui.TextInput(
+            label="Map / server",
+            placeholder="For example: The Island - EU 123",
+            max_length=100,
+            required=True,
+        )
+        self.reason_input = discord.ui.TextInput(
+            label="Reason / details",
+            placeholder="Explain what you need help with or what happened.",
+            style=discord.TextStyle.paragraph,
+            max_length=1000,
+            required=True,
+        )
+        self.add_item(self.name_input)
+        self.add_item(self.map_input)
+        self.add_item(self.reason_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        details = {
+            "name": self.name_input.value.strip(),
+            "map": self.map_input.value.strip(),
+            "reason": self.reason_input.value.strip(),
+        }
+        if not all(details.values()):
+            await interaction.response.send_message(
+                "Please complete your name, map/server, and reason before opening a ticket.",
+                ephemeral=True,
+            )
+            return
+        await create_ticket(interaction, self.ticket_type, details)
 
 
 class TicketPanelView(discord.ui.View):
@@ -159,23 +209,23 @@ class TicketPanelView(discord.ui.View):
 
     @discord.ui.button(label="Support", emoji="🎫", style=discord.ButtonStyle.primary, custom_id="ravn:ticket:support")
     async def support(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await create_ticket(interaction, "support")
+        await interaction.response.send_modal(TicketDetailsModal("support"))
 
     @discord.ui.button(label="Player Report", emoji="🚨", style=discord.ButtonStyle.danger, custom_id="ravn:ticket:player-report")
     async def player_report(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await create_ticket(interaction, "player-report")
+        await interaction.response.send_modal(TicketDetailsModal("player-report"))
 
     @discord.ui.button(label="Staff Report", emoji="🛡️", style=discord.ButtonStyle.secondary, custom_id="ravn:ticket:staff-report")
     async def staff_report(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await create_ticket(interaction, "staff-report")
+        await interaction.response.send_modal(TicketDetailsModal("staff-report"))
 
     @discord.ui.button(label="Donation Support", emoji="💰", style=discord.ButtonStyle.success, custom_id="ravn:ticket:donation")
     async def donation(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await create_ticket(interaction, "donation")
+        await interaction.response.send_modal(TicketDetailsModal("donation"))
 
     @discord.ui.button(label="Technical Support", emoji="🔧", style=discord.ButtonStyle.secondary, custom_id="ravn:ticket:technical")
     async def technical(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await create_ticket(interaction, "technical")
+        await interaction.response.send_modal(TicketDetailsModal("technical"))
 
 
 class TicketControlView(discord.ui.View):
@@ -280,6 +330,6 @@ def register(bot: discord.Client) -> None:
     @discord.app_commands.checks.has_permissions(manage_guild=True)
     async def ticket_panel(interaction: discord.Interaction) -> None:
         await interaction.response.send_message(
-            embed=ticket_info_embed(),
+            embed=brand_embed(ticket_info_embed(), bot_avatar_url(interaction.client)),
             view=TicketPanelView(),
         )

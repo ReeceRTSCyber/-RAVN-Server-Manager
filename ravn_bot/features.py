@@ -11,6 +11,8 @@ from .embeds import (
     ARK_BLUE,
     SUCCESS,
     announcements_embed,
+    brand_embed,
+    bot_avatar_url,
     event_embed,
     patch_notes_embed,
     recruitment_embed,
@@ -57,7 +59,7 @@ class RecruitmentModal(discord.ui.Modal, title="Tribe Recruitment Application"):
         embed.add_field(name="Server / map", value=self.server_map.value, inline=True)
         embed.add_field(name="Player requirements", value=self.player_requirements.value, inline=False)
         embed.add_field(name="Tribe requirements / contact", value=self.tribe_requirements.value, inline=False)
-        await channel.send(embed=embed)
+        await channel.send(embed=brand_embed(embed, bot_avatar_url(interaction.client)))
         await interaction.response.send_message(f"Your recruitment post is live in {channel.mention}.", ephemeral=True)
 
 
@@ -110,7 +112,9 @@ def register(bot: discord.Client) -> None:
         if not channel:
             await interaction.response.send_message("The change log channel does not exist yet. Run `/setup-server` first.", ephemeral=True)
             return
-        await channel.send(embed=patch_notes_embed(version, changes))
+        await channel.send(
+            embed=brand_embed(patch_notes_embed(version, changes), bot_avatar_url(interaction.client))
+        )
         await interaction.response.send_message(f"Patch notes posted in {channel.mention}.", ephemeral=True)
 
     @bot.tree.command(name="giveaway", description="Start a giveaway with a button to enter.")
@@ -129,7 +133,10 @@ def register(bot: discord.Client) -> None:
             f"**Prize:** {prize}\n**Winners:** {winners}\n**Ends:** <t:{int(ends_at)}:R>\n\nPress the button below to enter.",
             colour=SUCCESS,
         )
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.response.send_message(
+            embed=brand_embed(embed, bot_avatar_url(interaction.client)),
+            view=view,
+        )
         view.message = await interaction.original_response()
         asyncio.create_task(view.finish())
 
@@ -151,7 +158,12 @@ def register(bot: discord.Client) -> None:
         channel = _find_channel(interaction.guild, "📢・announcements") or interaction.channel
         if not isinstance(channel, discord.TextChannel):
             return
-        await channel.send(embed=event_embed(name, date, time, description, prize, location, requirements))
+        await channel.send(
+            embed=brand_embed(
+                event_embed(name, date, time, description, prize, location, requirements),
+                bot_avatar_url(interaction.client),
+            )
+        )
         await interaction.response.send_message(f"Event posted in {channel.mention}.", ephemeral=True)
 
     @bot.tree.command(name="announce", description="Publish a staff announcement.")
@@ -163,5 +175,7 @@ def register(bot: discord.Client) -> None:
         channel = _find_channel(interaction.guild, "📢・announcements") or interaction.channel
         if not isinstance(channel, discord.TextChannel):
             return
-        await channel.send(embed=announcements_embed(title, body))
+        await channel.send(
+            embed=brand_embed(announcements_embed(title, body), bot_avatar_url(interaction.client))
+        )
         await interaction.response.send_message(f"Announcement posted in {channel.mention}.", ephemeral=True)
