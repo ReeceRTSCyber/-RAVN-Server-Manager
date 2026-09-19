@@ -32,8 +32,21 @@ ROLE_GROUPS: dict[str, list[str]] = {
         "🧬 Breeder",
         "🦖 Tamer",
     ],
-    "OTHER": ["📥 Recruiter", "🎮 PC", "🎮 Xbox", "🎮 PlayStation"],
-    "NOTIFICATION ROLES": [
+    "OTHER": ["📥 Recruiter", "🎮 PS5", "🖥️ PC", "🟢 Xbox"],
+    "REGION ROLES": ["🇩🇪 Europe", "🌎 NA", "🇬🇧 UK", "🇦🇺 AUS"],
+    "PING ROLES": [
+        "📣 Small Announcements",
+        "🎉 Giveaway Ping",
+        "🔄 Rollback Ping",
+        "♻️ Restart Ping",
+        "🦖 Event Dino Ping",
+        "🔻 Event Crate Ping",
+        "🪨 Golem Ping",
+        "🚀 Events Ping",
+    ],
+    # Keep the original notification roles available for existing members and
+    # automations, even though the current self-assign panel uses PING ROLES.
+    "LEGACY NOTIFICATION ROLES": [
         "📢 Announcements",
         "⚔️ PvP",
         "💀 Raids",
@@ -44,15 +57,19 @@ ROLE_GROUPS: dict[str, list[str]] = {
 }
 
 ROLE_NAMES = [role for group in ROLE_GROUPS.values() for role in group]
-PLATFORM_ROLE_NAMES = ["🎮 PC", "🎮 Xbox", "🎮 PlayStation"]
-NOTIFICATION_ROLE_NAMES = [
-    "📢 Announcements",
-    "⚔️ PvP",
-    "💀 Raids",
-    "🦖 Bosses",
-    "💰 Trading",
-    "🎉 Events",
+PLATFORM_ROLE_NAMES = ["🎮 PS5", "🖥️ PC", "🟢 Xbox"]
+REGION_ROLE_NAMES = ["🇩🇪 Europe", "🌎 NA", "🇬🇧 UK", "🇦🇺 AUS"]
+PING_ROLE_NAMES = [
+    "📣 Small Announcements",
+    "🎉 Giveaway Ping",
+    "🔄 Rollback Ping",
+    "♻️ Restart Ping",
+    "🦖 Event Dino Ping",
+    "🔻 Event Crate Ping",
+    "🪨 Golem Ping",
+    "🚀 Events Ping",
 ]
+NOTIFICATION_ROLE_NAMES = PING_ROLE_NAMES
 
 CATEGORY_CHANNELS: dict[str, list[str]] = {
     "📜 INFORMATION": [

@@ -107,12 +107,21 @@ def role_selection_embed() -> discord.Embed:
     )
     embed.add_field(
         name="Platform",
-        value="Choose one: 🎮 PC, 🎮 Xbox, or 🎮 PlayStation.",
+        value="Choose one: 🎮 PS5, 🖥️ PC, or 🟢 Xbox.",
         inline=False,
     )
     embed.add_field(
-        name="Notifications",
-        value="Choose any: 📢 Announcements, ⚔️ PvP, 💀 Raids, 🦖 Bosses, 💰 Trading, or 🎉 Events.",
+        name="Region",
+        value="Choose one: 🇩🇪 Europe, 🌎 NA, 🇬🇧 UK, or 🇦🇺 AUS.",
+        inline=False,
+    )
+    embed.add_field(
+        name="Pings",
+        value=(
+            "Choose any: 📣 Small Announcements, 🎉 Giveaway Ping, 🔄 Rollback Ping, "
+            "♻️ Restart Ping, 🦖 Event Dino Ping, 🔻 Event Crate Ping, 🪨 Golem Ping, "
+            "or 🚀 Events Ping."
+        ),
         inline=False,
     )
     return embed

@@ -129,7 +129,16 @@ async def ensure_roles(guild: discord.Guild, result: SetupResult) -> dict[str, d
             created = await guild.create_role(
                 name=name,
                 permissions=role_permissions.get(name, discord.Permissions.none()),
-                mentionable=name in {"📢 Announcements", "⚔️ PvP", "💀 Raids", "🦖 Bosses", "💰 Trading", "🎉 Events"},
+                mentionable=name in {
+                    "📣 Small Announcements",
+                    "🎉 Giveaway Ping",
+                    "🔄 Rollback Ping",
+                    "♻️ Restart Ping",
+                    "🦖 Event Dino Ping",
+                    "🔻 Event Crate Ping",
+                    "🪨 Golem Ping",
+                    "🚀 Events Ping",
+                },
                 reason="RAVN Server Manager setup",
             )
             roles[name] = created

@@ -4,7 +4,7 @@ import logging
 
 import discord
 
-from .config import PLATFORM_ROLE_NAMES
+from .config import PING_ROLE_NAMES, PLATFORM_ROLE_NAMES, REGION_ROLE_NAMES
 from .embeds import ARK_BLUE, brand_embed, ravn_embed
 
 logger = logging.getLogger(__name__)
@@ -93,14 +93,16 @@ class PingRoleView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
         roles = [
-            ("Announcements", "📢 Announcements", "📢"),
-            ("PvP", "⚔️ PvP", "⚔️"),
-            ("Raids", "💀 Raids", "💀"),
-            ("Bosses", "🦖 Bosses", "🦖"),
-            ("Trading", "💰 Trading", "💰"),
-            ("Events", "🎉 Events", "🎉"),
+            ("Small Announcements", PING_ROLE_NAMES[0], "📣"),
+            ("Giveaway Ping", PING_ROLE_NAMES[1], "🎉"),
+            ("Rollback Ping", PING_ROLE_NAMES[2], "🔄"),
+            ("Restart Ping", PING_ROLE_NAMES[3], "♻️"),
+            ("Event Dino Ping", PING_ROLE_NAMES[4], "🦖"),
+            ("Event Crate Ping", PING_ROLE_NAMES[5], "🔻"),
+            ("Golem Ping", PING_ROLE_NAMES[6], "🪨"),
+            ("Events Ping", PING_ROLE_NAMES[7], "🚀"),
         ]
-        rows = [0, 1, 1, 2, 2, 3]
+        rows = [0, 1, 1, 2, 2, 3, 3, 4]
         for index, (label, role_name, emoji) in enumerate(roles):
             button = discord.ui.Button(
                 label=label,
@@ -117,10 +119,16 @@ class MiscRoleView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
         roles = [
-            ("PC", "🎮 PC", "🎮"),
-            ("Xbox", "🎮 Xbox", "🎮"),
-            ("PlayStation", "🎮 PlayStation", "🎮"),
+            ("PS5", PLATFORM_ROLE_NAMES[0], "🎮"),
+            ("PC", PLATFORM_ROLE_NAMES[1], "🖥️"),
+            ("Xbox", PLATFORM_ROLE_NAMES[2], "🟢"),
+            ("Europe", REGION_ROLE_NAMES[0], "🇩🇪"),
+            ("NA", REGION_ROLE_NAMES[1], "🌎"),
+            ("UK", REGION_ROLE_NAMES[2], "🇬🇧"),
+            ("AUS", REGION_ROLE_NAMES[3], "🇦🇺"),
         ]
+        exclusive_platforms = PLATFORM_ROLE_NAMES
+        exclusive_regions = REGION_ROLE_NAMES
         for index, (label, role_name, emoji) in enumerate(roles):
             button = discord.ui.Button(
                 label=label,
@@ -131,7 +139,9 @@ class MiscRoleView(discord.ui.View):
             )
             button.callback = _button_callback(
                 role_name,
-                exclusive_names=PLATFORM_ROLE_NAMES,
+                exclusive_names=(
+                    exclusive_platforms if role_name in exclusive_platforms else exclusive_regions
+                ),
             )
             self.add_item(button)
 
@@ -146,7 +156,12 @@ def ping_roles_embed(image_url: str | None = None) -> discord.Embed:
     embed.set_author(name="RAVN Server Manager")
     embed.add_field(
         name="Available pings",
-        value="📢 Announcements  •  ⚔️ PvP  •  💀 Raids\n🦖 Bosses  •  💰 Trading  •  🎉 Events",
+        value=(
+            "📣 Small Announcements  •  🎉 Giveaway Ping\n"
+            "🔄 Rollback Ping  •  ♻️ Restart Ping\n"
+            "🦖 Event Dino Ping  •  🔻 Event Crate Ping\n"
+            "🪨 Golem Ping  •  🚀 Events Ping"
+        ),
         inline=False,
     )
     return brand_embed(embed, image_url)
@@ -161,8 +176,8 @@ def misc_roles_embed(image_url: str | None = None) -> discord.Embed:
     )
     embed.set_author(name="RAVN Server Manager")
     embed.add_field(
-        name="Platform",
-        value="🎮 PC  •  🎮 Xbox  •  🎮 PlayStation",
+        name="Platform and region",
+        value="🎮 PS5  •  🖥️ PC  •  🟢 Xbox\n🇩🇪 Europe  •  🌎 NA  •  🇬🇧 UK  •  🇦🇺 AUS",
         inline=False,
     )
     return brand_embed(embed, image_url)
