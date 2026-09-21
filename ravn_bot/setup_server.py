@@ -53,13 +53,19 @@ DEVELOPER_ROLE_ICON_EMOJI_ID = "1551476412941078529"
 PING_ROLE_ICONS = {
     "📣 Small Announcements": "📣",
     "🎉 Giveaway Ping": "🎉",
-    "🔄 Rollback Ping": "🔄",
+    "🔄 Rollback Ping": 1551462057965264937,
     "♻️ Restart Ping": "♻️",
-    "🦖 Event Dino Ping": "🦖",
-    "🔻 Event Crate Ping": "🔻",
-    "🪨 Golem Ping": "🪨",
+    "🦖 Event Dino Ping": 1551557466188152964,
+    "🔻 Event Crate Ping": 1551557177892671529,
+    "🪨 Golem Ping": 1551461825806209086,
     "🚀 Events Ping": "🚀",
     "🎉 Discord Event Ping": "🎉",
+}
+
+PLATFORM_ROLE_ICONS = {
+    "🎮 PS5": 1551557280581816461,
+    "🖥️ PC": 1551557384881705004,
+    "🟢 Xbox": 1551557335422603306,
 }
 
 
@@ -363,6 +369,38 @@ async def _seed_embed(
         return False
 
 
+async def _apply_role_icon(role: discord.Role, icon: str | int) -> None:
+    """Apply either a Unicode emoji or a custom Discord emoji as the role icon."""
+    try:
+        if isinstance(icon, int):
+            import aiohttp
+
+            icon_url = f"https://cdn.discordapp.com/emojis/{icon}.png?size=128"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(icon_url) as response:
+                    if response.status != 200:
+                        logger.warning(
+                            "Could not download role icon for %s: HTTP %s",
+                            role.name,
+                            response.status,
+                        )
+                        return
+                    icon_bytes = await response.read()
+                    await role.edit(
+                        icon=icon_bytes,
+                        reason="RAVN Server Manager reaction role icon",
+                    )
+        else:
+            await role.edit(
+                unicode_emoji=icon,
+                reason="RAVN Server Manager reaction role icon",
+            )
+    except (discord.Forbidden, discord.HTTPException, TypeError) as exc:
+        logger.warning("Could not set role icon for %s: %s", role.name, exc)
+    except Exception as exc:
+        logger.warning("Could not set role icon for %s: %s", role.name, exc)
+
+
 async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[str, discord.Role]:
     """Create/update the self-assignable ping roles used by the role panel.
 
@@ -389,23 +427,19 @@ async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[s
             roles[name] = created
             result.roles_created += 1
 
-        # Apply the matching Unicode emoji as the role's actual icon.
-        # This also updates existing roles when /setup-server is run again.
         icon_emoji = PING_ROLE_ICONS.get(name)
         if icon_emoji:
-            try:
-                await roles[name].edit(
-                    unicode_emoji=icon_emoji,
-                    reason="RAVN Server Manager ping role icon",
-                )
-            except (discord.Forbidden, discord.HTTPException, TypeError) as exc:
-                logger.warning(
-                    "Could not set icon for ping role %s: %s",
-                    name,
-                    exc,
-                )
+            await _apply_role_icon(roles[name], icon_emoji)
 
     return roles
+
+
+async def ensure_platform_role_icons(guild: discord.Guild) -> None:
+    """Apply the supplied custom emoji icons to the PS5, PC and Xbox roles."""
+    for role_name, emoji_id in PLATFORM_ROLE_ICONS.items():
+        role = _role(guild, role_name)
+        if role:
+            await _apply_role_icon(role, emoji_id)
 
 
 async def ensure_developer_role(guild: discord.Guild, result: SetupResult) -> discord.Role:
@@ -457,6 +491,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     """
     result = SetupResult()
     await ensure_ping_roles(guild, result)
+    await ensure_platform_role_icons(guild)
     await ensure_developer_role(guild, result)
 
     role_channel = discord.utils.find(
