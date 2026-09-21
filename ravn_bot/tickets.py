@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import discord
 
-from .config import STAFF_ROLE_NAMES
+from .config import MANAGEMENT_ROLE_NAMES, STAFF_ROLE_NAMES
 from .embeds import ARK_BLUE, DANGER, SUCCESS, brand_embed, bot_avatar_url, ravn_embed, ticket_info_embed
 
 logger = logging.getLogger(__name__)
@@ -119,10 +119,11 @@ async def create_ticket(
             read_message_history=True,
         ),
     }
-    staff_roles = [role for role in interaction.guild.roles if role.name in STAFF_ROLE_NAMES]
+    allowed_role_names = MANAGEMENT_ROLE_NAMES if ticket_type == "staff-report" else STAFF_ROLE_NAMES
+    staff_roles = [role for role in interaction.guild.roles if role.name in allowed_role_names]
     if not staff_roles:
         await interaction.followup.send(
-            "No staff roles were found. Ask an administrator to run `/setup-server` first.",
+            "No authorised management roles were found. Ask an administrator to run `/setup-server` first.",
             ephemeral=True,
         )
         return
