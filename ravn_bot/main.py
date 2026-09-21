@@ -11,6 +11,7 @@ from .case_system import register as register_case_system
 from .config import load_settings
 from .embeds import brand_embed, bot_avatar_url, welcome_embed
 from .features import register as register_features
+from .verify import register as register_verify
 from .moderation import register as register_moderation
 from .role_selection import register as register_role_selection
 from .setup_server import setup_command
@@ -91,6 +92,7 @@ def create_bot() -> tuple[RavnBot, str]:
     register_role_selection(bot)
     register_moderation(bot)
     register_features(bot)
+    register_verify(bot)
     register_clear_server(bot)
     register_case_system(bot)
     return bot, settings.token
