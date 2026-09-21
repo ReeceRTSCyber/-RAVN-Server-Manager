@@ -102,6 +102,46 @@ class GiveawayView(discord.ui.View):
 
 
 def register(bot: discord.Client) -> None:
+    @bot.tree.command(name="help", description="Open the RAVN Server Manager command centre.")
+    async def help_command(interaction: discord.Interaction) -> None:
+        embed = ravn_embed(
+            "🤖 RAVN SERVER MANAGER",
+            "Your central command centre for the RAVN ARK Survival Ascended community.",
+            colour=RAVN_PURPLE,
+            footer="RAVN Server Manager • Command Centre",
+        )
+        embed.add_field(name="🎫 Support", value="/ticket — private support panel", inline=True)
+        embed.add_field(name="🎉 Community", value="/giveaway • /event • /recruit", inline=True)
+        embed.add_field(name="📢 Server", value="/announce • /patchnotes", inline=True)
+        embed.add_field(name="🛡️ Moderation", value="/warn • /timeout • /kick • /ban • /unban • /clear", inline=False)
+        embed.add_field(name="⚙️ Management", value="/setup-server — repair and provision the server", inline=False)
+        await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
+
+    @bot.tree.command(name="staff-panel", description="Open the RAVN staff dashboard.")
+    @discord.app_commands.default_permissions(manage_guild=True)
+    @discord.app_commands.checks.has_permissions(manage_guild=True)
+    async def staff_panel(interaction: discord.Interaction) -> None:
+        if not interaction.guild:
+            return
+        open_tickets = sum(
+            1 for channel in interaction.guild.text_channels
+            if channel.topic and "ticket_owner:" in channel.topic and "state:closed" not in channel.topic
+        )
+        embed = ravn_embed(
+            "🛡️ RAVN STAFF PANEL",
+            "Live overview of the server management system.",
+            colour=RAVN_PURPLE,
+            footer="RAVN Server Manager • Staff Dashboard",
+        )
+        embed.add_field(name="👥 Members", value=str(interaction.guild.member_count or 0), inline=True)
+        embed.add_field(name="🎫 Open Tickets", value=str(open_tickets), inline=True)
+        embed.add_field(name="📁 Channels", value=str(len(interaction.guild.channels)), inline=True)
+        embed.add_field(name="🟢 Bot Status", value="ONLINE", inline=True)
+        embed.add_field(name="🎫 Tickets", value="Use the ticket panel to manage support requests.", inline=False)
+        embed.add_field(name="🔨 Moderation", value="Use the moderation commands to manage members and log actions.", inline=False)
+        embed.add_field(name="📋 Logs", value="Ticket transcripts and moderation actions are sent to the configured log channels.", inline=False)
+        await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
+
     @bot.tree.command(name="recruit", description="Open a form to publish a tribe recruitment post.")
     async def recruit(interaction: discord.Interaction) -> None:
         await interaction.response.send_modal(RecruitmentModal())
