@@ -47,6 +47,9 @@ LOGO_ASSET_PATH = (
 )
 LOGO_FILENAME = "ravn-logo.png"
 
+DEVELOPER_ROLE_NAME = "💻 Developer"
+DEVELOPER_ROLE_ICON_EMOJI_ID = "1551476412941078529"
+
 
 @dataclass
 class SetupResult:
@@ -379,6 +382,47 @@ async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[s
     return roles
 
 
+async def ensure_developer_role(guild: discord.Guild, result: SetupResult) -> discord.Role:
+    """Create/update the Developer role with the requested Discord emoji as its role icon."""
+    existing = _role(guild, DEVELOPER_ROLE_NAME)
+    developer_permissions = discord.Permissions(
+        manage_guild=True,
+        manage_channels=True,
+        manage_messages=True,
+        embed_links=True,
+        attach_files=True,
+        read_message_history=True,
+        view_audit_log=True,
+    )
+
+    if existing:
+        role = existing
+    else:
+        role = await guild.create_role(
+            name=DEVELOPER_ROLE_NAME,
+            permissions=developer_permissions,
+            mentionable=True,
+            reason="RAVN Server Manager developer role",
+        )
+        result.roles_created += 1
+
+    try:
+        import aiohttp
+
+        icon_url = f"https://cdn.discordapp.com/emojis/{DEVELOPER_ROLE_ICON_EMOJI_ID}.png"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(icon_url) as response:
+                if response.status == 200:
+                    icon_bytes = await response.read()
+                    await role.edit(icon=icon_bytes, reason="RAVN Server Manager developer role icon")
+                else:
+                    logger.warning("Could not download Developer role icon: HTTP %s", response.status)
+    except Exception as exc:
+        logger.warning("Could not set Developer role icon: %s", exc)
+
+    return role
+
+
 async def provision_guild(guild: discord.Guild) -> SetupResult:
     """Set up only the RAVN ping roles and refresh the existing ping panel.
 
@@ -387,6 +431,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     """
     result = SetupResult()
     await ensure_ping_roles(guild, result)
+    await ensure_developer_role(guild, result)
 
     role_channel = discord.utils.find(
         lambda item: item.name == "🎭・role-selection",
