@@ -179,6 +179,55 @@ def register(bot):
         e=ravn_embed("🛡️ ADVANCED MODERATION","Use the existing warn/kick/ban/timeout/clear/unban commands plus the persistent punishment case system.\n\nRAVN also records staff command activity and provides /health monitoring.",colour=DANGER)
         await i.response.send_message(embed=brand_embed(e,bot_avatar_url(i.client)),ephemeral=True)
 
+    @bot.tree.command(name="slowmode",description="Set channel slowmode.")
+    @app_commands.checks.has_permissions(manage_channels=True)
+    async def slowmode(i,seconds:app_commands.Range[int,0,21600]):
+        if not isinstance(i.channel,discord.TextChannel): return
+        await i.channel.edit(slowmode_delay=seconds,reason="RAVN moderation")
+        await i.response.send_message("🛡️ Slowmode set to **{} seconds**.".format(seconds),ephemeral=True)
+
+    @bot.tree.command(name="lock-channel",description="Lock the current channel for members.")
+    @app_commands.checks.has_permissions(manage_channels=True)
+    async def lock_channel(i):
+        if not isinstance(i.channel,discord.TextChannel) or not i.guild:return
+        await i.channel.set_permissions(i.guild.default_role,send_messages=False,reason="RAVN channel lockdown")
+        await i.response.send_message("🔒 Channel locked for @everyone.",ephemeral=True)
+
+    @bot.tree.command(name="unlock-channel",description="Unlock the current channel for members.")
+    @app_commands.checks.has_permissions(manage_channels=True)
+    async def unlock_channel(i):
+        if not isinstance(i.channel,discord.TextChannel) or not i.guild:return
+        await i.channel.set_permissions(i.guild.default_role,send_messages=None,reason="RAVN channel unlock")
+        await i.response.send_message("🔓 Channel unlocked.",ephemeral=True)
+
+    @bot.tree.command(name="staff-activity",description="Show staff command activity.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def staff_activity(i):
+        if not i.guild:return
+        c=db(); rows=c.execute("SELECT user_id,actions,last_action FROM ravn_staff_activity WHERE guild_id=? ORDER BY actions DESC LIMIT 10",(i.guild.id,)).fetchall(); c.close()
+        e=ravn_embed("🛡️ STAFF ACTIVITY","Command activity recorded by RAVN.",colour=RAVN_PURPLE)
+        if not rows: e.description="No staff activity has been recorded yet."
+        for uid,n,last in rows:
+            m=i.guild.get_member(uid); name=m.mention if m else "Unknown staff"
+            e.add_field(name=name,value="Actions: **{}**\nLast action: <t:{}:R>".format(n,int(datetime.fromisoformat(last).timestamp())),inline=True)
+        await i.response.send_message(embed=brand_embed(e,bot_avatar_url(i.client)),ephemeral=True)
+
+    @bot.tree.command(name="community-event",description="Post a community event with an optional notification.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def community_event(i,title:str,details:str,notify:bool=False):
+        if not i.guild:return
+        out=ch(i.guild,"🎉・discord-events") or i.channel
+        if not isinstance(out,discord.TextChannel):return
+        e=ravn_embed("🎉 "+title,details,colour=RAVN_PURPLE,footer="RAVN Server Manager • Community Events")
+        await out.send(embed=brand_embed(e,bot_avatar_url(i.client)))
+        if notify:
+            c=db(); row=c.execute("SELECT channel_id,role_id,enabled FROM ravn_notifications WHERE guild_id=? AND kind='events'",(i.guild.id,)).fetchone(); c.close()
+            if row and row[2]:
+                nc=i.guild.get_channel(row[0]); role=i.guild.get_role(row[1]) if row[1] else None
+                if isinstance(nc,discord.TextChannel):
+                    await nc.send("{}🎉 New community event: **{}**".format(role.mention+" " if role else "",title))
+        await i.response.send_message("🎉 Event posted in {}.".format(out.mention),ephemeral=True)
+
     async def command_complete(i,command):
         if not i.guild or not isinstance(i.user,discord.Member):return
         c=db(); now=datetime.now(timezone.utc).isoformat()
