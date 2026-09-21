@@ -9,6 +9,7 @@ import discord
 
 from .embeds import (
     ARK_BLUE,
+    RAVN_PURPLE,
     SUCCESS,
     announcements_embed,
     brand_embed,
@@ -72,10 +73,13 @@ class GiveawayView(discord.ui.View):
         self.entries: set[int] = set()
         self.message: discord.Message | None = None
 
-    @discord.ui.button(label="Enter giveaway", emoji="🎉", style=discord.ButtonStyle.success, custom_id="ravn:giveaway:enter")
+    @discord.ui.button(label="Enter giveaway", emoji="🎉", style=discord.ButtonStyle.primary, custom_id="ravn:giveaway:enter")
     async def enter(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id in self.entries:
+            await interaction.response.send_message("You are already entered in this giveaway.", ephemeral=True)
+            return
         self.entries.add(interaction.user.id)
-        await interaction.response.send_message("You are entered. Good luck.", ephemeral=True)
+        await interaction.response.send_message("🎉 You are entered. Good luck!", ephemeral=True)
 
     async def finish(self) -> None:
         delay = max(0, self.ends_at - datetime.now(timezone.utc).timestamp())
@@ -90,7 +94,7 @@ class GiveawayView(discord.ui.View):
             description = f"No valid entries were recorded.\n\nPrize: **{self.prize}**"
         try:
             await self.message.edit(
-                embed=ravn_embed("🎉 Giveaway ended", description, colour=ARK_BLUE),
+                embed=ravn_embed("🎉 RAVN GIVEAWAY ENDED", description, colour=RAVN_PURPLE, footer="RAVN Server Manager • Giveaways"),
                 view=None,
             )
         except discord.HTTPException:
@@ -129,9 +133,10 @@ def register(bot: discord.Client) -> None:
         ends_at = datetime.now(timezone.utc).timestamp() + duration_minutes * 60
         view = GiveawayView(prize, winners, ends_at)
         embed = ravn_embed(
-            "🎉 Giveaway",
-            f"**Prize:** {prize}\n**Winners:** {winners}\n**Ends:** <t:{int(ends_at)}:R>\n\nPress the button below to enter.",
-            colour=ARK_BLUE,
+            "🎉 RAVN GIVEAWAY",
+            f"🏆 **PRIZE**\n{prize}\n\n👥 **WINNERS**\n{winners}\n\n⏰ **ENDS**\n<t:{int(ends_at)}:R>\n\nPress **🎉 ENTER GIVEAWAY** below to enter.",
+            colour=RAVN_PURPLE,
+            footer="RAVN Server Manager • Giveaways",
         )
         await interaction.response.send_message(
             embed=brand_embed(embed, bot_avatar_url(interaction.client)),
