@@ -7,6 +7,7 @@ import discord
 
 ARK_BLUE = discord.Colour.from_rgb(20, 91, 140)
 ARK_DARK_BLUE = discord.Colour.from_rgb(10, 39, 64)
+RAVN_PURPLE = discord.Colour.from_rgb(112, 74, 180)
 SUCCESS = discord.Colour.from_rgb(45, 175, 105)
 WARNING = discord.Colour.from_rgb(220, 145, 42)
 DANGER = discord.Colour.from_rgb(190, 55, 65)
@@ -95,7 +96,7 @@ def welcome_embed(member: discord.Member) -> discord.Embed:
     return ravn_embed(
         f"Welcome to RAVN, {member.display_name}",
         "You are now part of a competitive ARK community. Read the rules, select your roles, and find your tribe.",
-        colour=SUCCESS,
+        colour=RAVN_PURPLE,
     )
 
 
@@ -138,7 +139,7 @@ def trading_rules_embed() -> discord.Embed:
     embed = ravn_embed(
         "💰 Trading Rules",
         "Keep trades clear, fair, and traceable.",
-        colour=WARNING,
+        colour=RAVN_PURPLE,
     )
     embed.add_field(
         name="Before trading",
@@ -154,18 +155,25 @@ def trading_rules_embed() -> discord.Embed:
 
 
 def ticket_info_embed() -> discord.Embed:
-    return ravn_embed(
+    embed = ravn_embed(
         "🎫 RAVN SUPPORT CENTRE",
-        "Choose the ticket type that best matches your request, then complete the required form "
-        "with your name, map/server, and reason before a private ticket is created.",
+        "Choose the department that matches your request. Your ticket will be private and routed to the correct team.",
+        colour=RAVN_PURPLE,
     )
+    embed.add_field(name="🎫 Support", value="General community help", inline=True)
+    embed.add_field(name="🚨 Player Report", value="Report players, tribes or incidents", inline=True)
+    embed.add_field(name="🛡️ Staff Report", value="Private management-only staff report", inline=True)
+    embed.add_field(name="💰 Donation Support", value="Store, payment or purchase help", inline=True)
+    embed.add_field(name="🔧 Technical Support", value="Discord or game-server issues", inline=True)
+    embed.add_field(name="🔒 Privacy", value="Only you and the authorised team can see your ticket.", inline=False)
+    return embed
 
 
 def reports_embed() -> discord.Embed:
     return ravn_embed(
         "🚨 Player Reports",
         "Open a Player Report ticket with the player name, server/map, approximate time, and any evidence you have.",
-        colour=DANGER,
+        colour=RAVN_PURPLE,
     )
 
 
@@ -199,7 +207,7 @@ def event_embed(
     location: str,
     requirements: str,
 ) -> discord.Embed:
-    embed = ravn_embed(f"🎉 {name}", description, colour=SUCCESS)
+    embed = ravn_embed(f"🎉 {name}", description, colour=RAVN_PURPLE)
     embed.add_field(name="Date", value=date, inline=True)
     embed.add_field(name="Time", value=time, inline=True)
     embed.add_field(name="Prize", value=prize or "TBA", inline=True)
