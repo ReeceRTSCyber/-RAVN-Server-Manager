@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import random
+import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
 EVENT_INTERVAL_SECONDS = 4 * 60 * 60
 DINO_EVENT_ANSWERS = [
@@ -57,13 +61,77 @@ def _find_channel(guild: discord.Guild, name: str) -> discord.TextChannel | None
     return discord.utils.get(guild.text_channels, name=name)
 
 
-def _gift_code_for(event_type: str) -> str | None:
-    # Codes are supplied securely through Railway environment variables.
-    # Use comma-separated codes in RAVN_DINO_GIFT_CODES / RAVN_VAULT_GIFT_CODES.
-    import os
-    variable = "RAVN_DINO_GIFT_CODES" if event_type == "dino" else "RAVN_VAULT_GIFT_CODES"
-    codes = [code.strip() for code in os.getenv(variable, "").split(",") if code.strip()]
-    return random.choice(codes) if codes else None
+GIFT_CARD_DB_PATH = Path(__file__).resolve().parent / "ravn.sqlite3"
+
+
+def _gift_card_db() -> sqlite3.Connection:
+    db = sqlite3.connect(GIFT_CARD_DB_PATH)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS gift_cards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            value TEXT NOT NULL,
+            code TEXT NOT NULL UNIQUE,
+            claimed INTEGER NOT NULL DEFAULT 0,
+            claimed_at TEXT
+        )
+    """)
+    db.commit()
+    return db
+
+
+def _gift_card_inventory(event_type: str) -> dict[str, list[str]]:
+    variable = "RAVN_DINO_GIFT_CARDS" if event_type == "dino" else "RAVN_VAULT_GIFT_CARDS"
+    raw = os.getenv(variable, "").strip()
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.error("%s is not valid JSON.", variable)
+        return {}
+    if not isinstance(data, dict):
+        logger.error("%s must be a JSON object mapping dollar values to code arrays.", variable)
+        return {}
+    return {
+        str(value): [str(code).strip() for code in codes if str(code).strip()]
+        for value, codes in data.items()
+        if isinstance(codes, list)
+    }
+
+
+def _sync_gift_cards(event_type: str) -> None:
+    inventory = _gift_card_inventory(event_type)
+    if not inventory:
+        return
+    db = _gift_card_db()
+    for value, codes in inventory.items():
+        for code in codes:
+            db.execute(
+                "INSERT OR IGNORE INTO gift_cards(event_type,value,code) VALUES(?,?,?)",
+                (event_type, value, code),
+            )
+    db.commit()
+    db.close()
+
+
+def _claim_gift_card(event_type: str) -> tuple[str, str] | None:
+    _sync_gift_cards(event_type)
+    db = _gift_card_db()
+    row = db.execute(
+        "SELECT id,value,code FROM gift_cards WHERE event_type=? AND claimed=0 ORDER BY RANDOM() LIMIT 1",
+        (event_type,),
+    ).fetchone()
+    if not row:
+        db.close()
+        return None
+    db.execute(
+        "UPDATE gift_cards SET claimed=1,claimed_at=? WHERE id=?",
+        (datetime.now(timezone.utc).isoformat(), row[0]),
+    )
+    db.commit()
+    db.close()
+    return str(row[1]), str(row[2])
 
 
 def _scramble_dino(name: str) -> str:
@@ -531,8 +599,12 @@ def register(bot: discord.Client) -> None:
 
         if event_type == "vault":
             code = random.randint(1, 500)
-            gift_value = random.choice(VAULT_GIFT_CARD_VALUES)
-            view = VaultCodeView(str(code), f"{gift_value} Gift Card", _gift_code_for("vault"))
+            gift_card = _claim_gift_card("vault")
+            if not gift_card:
+                logger.warning("Vault event skipped for guild %s: no unused vault gift cards configured.", guild.id)
+                return
+            gift_value, gift_card_code = gift_card
+            view = VaultCodeView(str(code), f"{gift_value} Gift Card", gift_card_code)
             embed = ravn_embed(
                 "🔐 RAVN VAULT CHALLENGE",
                 "🏦 **THE VAULT IS LOCKED**\n\nA random vault code between **1 and 500** has been generated.\n\nBe the **first** person to enter the correct code and win:\n🎁 **Store Gift Card**\n\nPress **🔐 CRACK THE VAULT** to submit your guess.\n\n⏰ A new challenge runs every **4 hours**.\n⚠️ One correct answer wins.",
@@ -542,8 +614,12 @@ def register(bot: discord.Client) -> None:
         else:
             answer = random.choice(DINO_EVENT_ANSWERS)
             scrambled = _scramble_dino(answer)
-            gift_value = random.choice(DINO_GIFT_CARD_VALUES)
-            view = DinoGuessView(answer, f"{gift_value} Gift Card", _gift_code_for("dino"))
+            gift_card = _claim_gift_card("dino")
+            if not gift_card:
+                logger.warning("Dino event skipped for guild %s: no unused dino gift cards configured.", guild.id)
+                return
+            gift_value, gift_card_code = gift_card
+            view = DinoGuessView(answer, f"{gift_value} Gift Card", gift_card_code)
             embed = ravn_embed(
                 "🦖 RAVN DINO GUESS",
                 f"🧩 **UNSCRAMBLE THE DINOSAUR**\\n\\n**{scrambled.upper()}**\\n\\nThe dinosaur's letters have been mixed up. Can you work out the name?\\n\\nBe the **first** person to guess it correctly and win:\\n🎁 **{gift_value} Gift Card**\\n\\nPress **🦖 GUESS THE DINO** to submit your guess.\\n\\n⏰ A new challenge runs every **4 hours**.\\n⚠️ One correct answer wins.",
