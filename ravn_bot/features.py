@@ -20,6 +20,7 @@ from .embeds import (
     ravn_embed,
 )
 from .tickets import _is_staff
+from .case_system import create_case
 
 logger = logging.getLogger(__name__)
 
@@ -225,13 +226,14 @@ def register(bot: discord.Client) -> None:
             return
 
         evidence = [item for item in (evidence_1, evidence_2, evidence_3) if item]
+        case_id = create_case(interaction.guild.id, "punishment", tribe_name, rule_broken, punishment, interaction.user.id, "\n".join(item.url for item in evidence))
         evidence_lines = []
         for index, attachment in enumerate(evidence, start=1):
             evidence_lines.append(f"**Evidence {index}:** [View attachment]({attachment.url})")
         evidence_text = "\n".join(evidence_lines) if evidence_lines else "No screenshots or videos attached."
 
         embed = ravn_embed(
-            "⚖️ RAVN PUNISHMENT RECORD",
+            f"⚖️ RAVN PUNISHMENT • CASE-{case_id:06d}",
             f"A formal punishment has been issued against **{tribe_name}**.",
             colour=RAVN_PURPLE,
             footer="RAVN Server Manager • Punishment System",
