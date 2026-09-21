@@ -9,6 +9,7 @@ from .embeds import RAVN_PURPLE, brand_embed, bot_avatar_url, ravn_embed
 logger = logging.getLogger(__name__)
 
 SURVIVOR_ROLE_NAME = "Survivor"
+UNVERIFIED_ROLE_NAME = "Unverified"
 VERIFY_LOG_CHANNEL_NAMES = {"📊・staff-logs", "📜・mod-logs"}
 
 def _find_log_channel(guild: discord.Guild) -> discord.TextChannel | None:
@@ -27,36 +28,55 @@ class VerifyView(discord.ui.View):
         if not interaction.guild or not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message("Verification can only be completed inside the RAVN server.", ephemeral=True)
             return
-        role = discord.utils.get(interaction.guild.roles, name=SURVIVOR_ROLE_NAME)
-        if not role:
+
+        survivor_role = discord.utils.get(interaction.guild.roles, name=SURVIVOR_ROLE_NAME)
+        unverified_role = discord.utils.get(interaction.guild.roles, name=UNVERIFIED_ROLE_NAME)
+
+        if not survivor_role:
             await interaction.response.send_message(f"The {SURVIVOR_ROLE_NAME} role could not be found. Please contact staff.", ephemeral=True)
             return
-        if interaction.guild.me and role >= interaction.guild.me.top_role:
+
+        if interaction.guild.me and survivor_role >= interaction.guild.me.top_role:
             await interaction.response.send_message("I cannot assign the Survivor role. Move the RAVN bot role above Survivor in Server Settings → Roles.", ephemeral=True)
             return
-        if role in interaction.user.roles:
+
+        if survivor_role in interaction.user.roles:
+            if unverified_role and unverified_role in interaction.user.roles:
+                try:
+                    await interaction.user.remove_roles(unverified_role, reason="RAVN member verification already completed")
+                except discord.Forbidden:
+                    logger.warning("Could not remove Unverified role from already verified member %s", interaction.user.id)
             await interaction.response.send_message("✅ You are already verified as a Survivor.", ephemeral=True)
             return
+
         try:
-            await interaction.user.add_roles(role, reason="RAVN member verification")
+            await interaction.user.add_roles(survivor_role, reason="RAVN member verification")
+            if unverified_role and unverified_role in interaction.user.roles:
+                if interaction.guild.me and unverified_role >= interaction.guild.me.top_role:
+                    logger.warning("Unverified role is too high for RAVN to remove in guild %s", interaction.guild.id)
+                else:
+                    await interaction.user.remove_roles(unverified_role, reason="RAVN member verification completed")
         except discord.Forbidden:
-            await interaction.response.send_message("Discord denied the role update. Check that RAVN has Manage Roles and that its bot role is above Survivor.", ephemeral=True)
+            await interaction.response.send_message("Discord denied the role update. Check that RAVN has Manage Roles and that its bot role is above both Survivor and Unverified.", ephemeral=True)
             return
         except discord.HTTPException:
             logger.exception("Failed to verify member %s", interaction.user.id)
             await interaction.response.send_message("Verification failed temporarily. Please try again in a moment.", ephemeral=True)
             return
+
         log_channel = _find_log_channel(interaction.guild)
         if log_channel:
             embed = ravn_embed("🛡️ MEMBER VERIFIED", f"{interaction.user.mention} has completed server verification.", colour=RAVN_PURPLE, footer="RAVN Server Manager • Verification")
             embed.add_field(name="👤 Member", value=f"{interaction.user.mention}\n`{interaction.user}`", inline=True)
-            embed.add_field(name="🎭 Role Given", value=role.mention, inline=True)
+            embed.add_field(name="🎭 Role Given", value=survivor_role.mention, inline=True)
+            embed.add_field(name="🔓 Role Removed", value=unverified_role.mention if unverified_role else "Unverified role not found", inline=True)
             await log_channel.send(embed=brand_embed(embed, bot_avatar_url(interaction.client)), allowed_mentions=discord.AllowedMentions.none())
-        await interaction.response.send_message(f"✅ Verification complete! You have been given {role.mention}. Welcome to RAVN!", ephemeral=True)
+
+        await interaction.response.send_message(f"✅ Verification complete! You have been given {survivor_role.mention} and your Unverified role has been removed. Welcome to RAVN!", ephemeral=True)
 
 def verification_embed() -> discord.Embed:
     embed = ravn_embed("🛡️ RAVN VERIFICATION", "Welcome to the RAVN ARK Survival Ascended community!\n\nBefore accessing the community, click **VERIFY** below to confirm that you are a member of the server.\n\nOnce verified, you will receive the **Survivor** role.", colour=RAVN_PURPLE, footer="RAVN Server Manager • Member Verification")
-    embed.add_field(name="✅ What happens when I verify?", value="You will automatically receive the Survivor role.", inline=False)
+    embed.add_field(name="✅ What happens when I verify?", value="You will automatically receive the Survivor role and your Unverified role will be removed.", inline=False)
     embed.add_field(name="⚠️ Need help?", value="If verification does not work, contact a member of staff.", inline=False)
     return embed
 
