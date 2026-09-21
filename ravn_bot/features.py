@@ -5,6 +5,15 @@ import logging
 import random
 from datetime import datetime, timezone
 
+EVENT_INTERVAL_SECONDS = 4 * 60 * 60
+DINO_EVENT_ANSWERS = [
+    "Rex", "Spino", "Therizinosaur", "Giganotosaurus", "Carcharodontosaurus",
+    "Wyvern", "Rock Drake", "Managarmr", "Yutyrannus", "Direwolf",
+    "Argentavis", "Quetzal", "Mammoth", "Doedicurus", "Ankylosaurus",
+    "Stegosaurus", "Triceratops", "Baryonyx", "Mosasaurus", "Plesiosaur",
+]
+EVENT_SCHEDULER_STARTED = False
+
 import discord
 
 from .embeds import (
@@ -473,6 +482,59 @@ def register(bot: discord.Client) -> None:
         message = await channel.send(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=view)
         view.message = message
         await interaction.response.send_message(f"🦖 Dino guess event posted in {channel.mention}.", ephemeral=True)
+
+    async def _post_scheduled_event(guild: discord.Guild, event_type: str) -> None:
+        channel = _find_channel(guild, "🎪・server-events")
+        if not channel:
+            logger.warning("Scheduled event skipped for guild %s: 🎪・server-events not found", guild.id)
+            return
+
+        if event_type == "vault":
+            code = random.randint(1, 500)
+            view = VaultCodeView(str(code), "Store Gift Card")
+            embed = ravn_embed(
+                "🔐 RAVN VAULT CHALLENGE",
+                "🏦 **THE VAULT IS LOCKED**\n\nA random vault code between **1 and 500** has been generated.\n\nBe the **first** person to enter the correct code and win:\n🎁 **Store Gift Card**\n\nPress **🔐 CRACK THE VAULT** to submit your guess.\n\n⏰ A new challenge runs every **4 hours**.\n⚠️ One correct answer wins.",
+                colour=RAVN_PURPLE,
+                footer="RAVN Server Manager • Automatic 4-Hour Events",
+            )
+        else:
+            answer = random.choice(DINO_EVENT_ANSWERS)
+            view = DinoGuessView(answer, "Store Gift Card")
+            embed = ravn_embed(
+                "🦖 RAVN DINO GUESS",
+                "🧩 **MYSTERY DINOSAUR**\n\nA dinosaur has been randomly selected.\n\nBe the **first** person to guess it correctly and win:\n🎁 **Store Gift Card**\n\nPress **🦖 GUESS THE DINO** to submit your guess.\n\n⏰ A new challenge runs every **4 hours**.\n⚠️ One correct answer wins.",
+                colour=RAVN_PURPLE,
+                footer="RAVN Server Manager • Automatic 4-Hour Events",
+            )
+
+        message = await channel.send(
+            embed=brand_embed(embed, bot_avatar_url(guild._state._client)),
+            view=view,
+        )
+        view.message = message
+
+    async def _automatic_event_loop() -> None:
+        global EVENT_SCHEDULER_STARTED
+        if EVENT_SCHEDULER_STARTED:
+            return
+        EVENT_SCHEDULER_STARTED = True
+        await bot.wait_until_ready()
+        event_type = "vault"
+        while not bot.is_closed():
+            try:
+                for guild in bot.guilds:
+                    await _post_scheduled_event(guild, event_type)
+                event_type = "dino" if event_type == "vault" else "vault"
+                await asyncio.sleep(EVENT_INTERVAL_SECONDS)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Automatic 4-hour event loop failed")
+                await asyncio.sleep(60)
+
+    if not any(task.get_name() == "ravn-automatic-events" for task in asyncio.all_tasks()):
+        task = asyncio.create_task(_automatic_event_loop(), name="ravn-automatic-events")
 
     @bot.tree.command(name="vault-event", description="Start a first-correct vault code event.")
     @discord.app_commands.default_permissions(manage_guild=True)
