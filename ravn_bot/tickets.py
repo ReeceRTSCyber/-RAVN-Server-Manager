@@ -70,11 +70,30 @@ def _ticket_metadata(channel: discord.TextChannel) -> dict[str, str]:
     return values
 
 
-async def _find_ticket_category(guild: discord.Guild) -> discord.CategoryChannel:
-    category = discord.utils.get(guild.categories, name="🎫 SUPPORT")
+TICKET_CATEGORY_NAMES = {
+    "support": "🎫・SUPPORT TICKETS",
+    "player-report": "🚨・PLAYER REPORT TICKET",
+    "staff-report": "🛡️・STAFF REPORT TICKET",
+    "donation": "💰・DONATION TICKET",
+    "technical": "🔧・TECHNICAL SUPPORT TICKET",
+}
+
+
+async def _find_ticket_category(
+    guild: discord.Guild,
+    ticket_type: str,
+) -> discord.CategoryChannel:
+    category_name = TICKET_CATEGORY_NAMES.get(ticket_type)
+    if not category_name:
+        raise LookupError(f"Unknown ticket type: {ticket_type}")
+
+    category = discord.utils.get(guild.categories, name=category_name)
     if category:
         return category
-    raise LookupError("The 🎫 SUPPORT category is missing. Run /setup-server first.")
+
+    raise LookupError(
+        f"The {category_name} category is missing. Please create it before opening this ticket."
+    )
 
 
 async def create_ticket(
@@ -90,7 +109,7 @@ async def create_ticket(
     await interaction.response.defer(ephemeral=True)
 
     try:
-        category = await _find_ticket_category(interaction.guild)
+        category = await _find_ticket_category(interaction.guild, ticket_type)
     except LookupError as exc:
         await interaction.followup.send(str(exc), ephemeral=True)
         return
