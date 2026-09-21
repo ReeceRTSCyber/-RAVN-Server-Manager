@@ -101,8 +101,9 @@ class PingRoleView(discord.ui.View):
             ("Event Crate Ping", PING_ROLE_NAMES[5], "🔻"),
             ("Golem Ping", PING_ROLE_NAMES[6], "🪨"),
             ("Events Ping", PING_ROLE_NAMES[7], "🚀"),
+            ("Discord Event Ping", PING_ROLE_NAMES[8], "🎉"),
         ]
-        rows = [0, 1, 1, 2, 2, 3, 3, 4]
+        rows = [0, 1, 1, 2, 2, 3, 3, 4, 4]
         for index, (label, role_name, emoji) in enumerate(roles):
             button = discord.ui.Button(
                 label=label,
@@ -160,7 +161,7 @@ def ping_roles_embed(image_url: str | None = None) -> discord.Embed:
             "📣 Small Announcements  •  🎉 Giveaway Ping\n"
             "🔄 Rollback Ping  •  ♻️ Restart Ping\n"
             "🦖 Event Dino Ping  •  🔻 Event Crate Ping\n"
-            "🪨 Golem Ping  •  🚀 Events Ping"
+            "🪨 Golem Ping  •  🚀 Events Ping\n🎉 Discord Event Ping"
         ),
         inline=False,
     )
