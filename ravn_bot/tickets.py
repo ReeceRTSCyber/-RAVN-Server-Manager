@@ -86,10 +86,13 @@ async def create_ticket(
         await interaction.response.send_message("Tickets can only be opened inside a server.", ephemeral=True)
         return
 
+    # Acknowledge the interaction before creating the channel; Discord only allows a few seconds.
+    await interaction.response.defer(ephemeral=True)
+
     try:
         category = await _find_ticket_category(interaction.guild)
     except LookupError as exc:
-        await interaction.response.send_message(str(exc), ephemeral=True)
+        await interaction.followup.send(str(exc), ephemeral=True)
         return
 
     marker = f"ticket_owner:{interaction.user.id};type:{ticket_type}"
@@ -101,7 +104,7 @@ async def create_ticket(
         interaction.guild.channels,
     )
     if existing and "state:closed" not in (existing.topic or ""):
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"You already have an open {TICKET_TYPES[ticket_type][0]} ticket: {existing.mention}",
             ephemeral=True,
         )
@@ -118,7 +121,7 @@ async def create_ticket(
     }
     staff_roles = [role for role in interaction.guild.roles if role.name in STAFF_ROLE_NAMES]
     if not staff_roles:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "No staff roles were found. Ask an administrator to run `/setup-server` first.",
             ephemeral=True,
         )
@@ -157,7 +160,7 @@ async def create_ticket(
         embed=brand_embed(embed, bot_avatar_url(interaction.client)),
         view=TicketControlView(),
     )
-    await interaction.response.send_message(f"Your private ticket is ready: {channel.mention}", ephemeral=True)
+    await interaction.followup.send(f"Your private ticket is ready: {channel.mention}", ephemeral=True)
 
 
 class TicketDetailsModal(discord.ui.Modal):
