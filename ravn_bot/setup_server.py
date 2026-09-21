@@ -450,7 +450,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
 def setup_command(bot: discord.Client) -> None:
     @bot.tree.command(name="setup-server", description="Create or repair the complete RAVN Discord server structure.")
     @discord.app_commands.default_permissions(administrator=True)
-    @discord.app_commands.checks.has_permissions(administrator=True)
+    @discord.app_commands.check(lambda interaction: bool(interaction.guild and interaction.guild.owner_id == interaction.user.id))
     async def setup_server(interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
         if not interaction.guild:
