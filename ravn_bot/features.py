@@ -90,7 +90,7 @@ class GiveawayView(discord.ui.View):
             description = f"No valid entries were recorded.\n\nPrize: **{self.prize}**"
         try:
             await self.message.edit(
-                embed=ravn_embed("🎉 Giveaway ended", description, colour=SUCCESS),
+                embed=ravn_embed("🎉 Giveaway ended", description, colour=ARK_BLUE),
                 view=None,
             )
         except discord.HTTPException:
@@ -131,7 +131,7 @@ def register(bot: discord.Client) -> None:
         embed = ravn_embed(
             "🎉 Giveaway",
             f"**Prize:** {prize}\n**Winners:** {winners}\n**Ends:** <t:{int(ends_at)}:R>\n\nPress the button below to enter.",
-            colour=SUCCESS,
+            colour=ARK_BLUE,
         )
         await interaction.response.send_message(
             embed=brand_embed(embed, bot_avatar_url(interaction.client)),
