@@ -411,7 +411,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
 
 
 def setup_command(bot: discord.Client) -> None:
-    @bot.tree.command(name="setup-server", description="Create or repair the complete RAVN Discord server structure.")
+    @bot.tree.command(name="setup-server", description="Create or refresh RAVN ping roles without changing the server layout.")
     @discord.app_commands.default_permissions(administrator=True)
     @discord.app_commands.check(lambda interaction: bool(interaction.guild and interaction.guild.owner_id == interaction.user.id))
     async def setup_server(interaction: discord.Interaction) -> None:
@@ -427,11 +427,9 @@ def setup_command(bot: discord.Client) -> None:
                 else ""
             )
             summary = (
-                "Server setup complete. "
-                f"Created {result.roles_created} roles, {result.categories_created} categories, "
-                f"{result.channels_created} channels, removed {result.channels_removed} retired channels and "
-                f"{result.categories_removed} retired categories, and seeded {result.messages_seeded} embeds. "
-                f"{cleanup_note}Existing objects were preserved."
+                "Ping-role setup complete. "
+                f"Created {result.roles_created} missing ping role(s) and refreshed {result.messages_seeded} role panel(s). "
+                "No categories, channels, or non-ping roles were created, deleted, moved, or reordered."
             )
             await interaction.followup.send(
                 summary,
