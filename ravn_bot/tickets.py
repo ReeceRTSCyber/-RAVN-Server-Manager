@@ -333,6 +333,7 @@ class TicketControlView(discord.ui.View):
         if not _is_staff(interaction.user):
             await interaction.response.send_message("Only staff can claim a ticket.", ephemeral=True)
             return
+        await interaction.response.defer(ephemeral=True)
         if isinstance(interaction.channel, discord.TextChannel):
             metadata = _ticket_metadata(interaction.channel)
             await interaction.channel.edit(
@@ -351,7 +352,7 @@ class TicketControlView(discord.ui.View):
                     colour=SUCCESS,
                 )
             )
-        await interaction.response.send_message("Ticket claimed.", ephemeral=True)
+        await interaction.followup.send("Ticket claimed.", ephemeral=True)
 
     @discord.ui.button(label="Delete Ticket", emoji="🗑️", style=discord.ButtonStyle.danger, custom_id="ravn:ticket:delete")
     async def delete(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
