@@ -368,59 +368,109 @@ def register(bot: discord.Client) -> None:
         embed.add_field(name="⚙️ Management", value="/setup-server — repair and provision the server", inline=False)
         await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
 
+    class StaffAnnouncementModal(discord.ui.Modal, title="RAVN Announcement"):
+        title_input = discord.ui.TextInput(label="Title", max_length=100)
+        body_input = discord.ui.TextInput(label="Message", style=discord.TextStyle.paragraph, max_length=1800)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            if not interaction.guild or not isinstance(interaction.user, discord.Member): return
+            channel = _find_channel(interaction.guild, "📢・announcements")
+            if not isinstance(channel, discord.TextChannel):
+                await interaction.response.send_message("📢 The announcements channel is not configured.", ephemeral=True); return
+            await channel.send(embed=brand_embed(announcements_embed(self.title_input.value, self.body_input.value), bot_avatar_url(interaction.client)))
+            await interaction.response.send_message(f"📢 Announcement posted in {channel.mention}.", ephemeral=True)
+
+    class StaffGiveawayModal(discord.ui.Modal, title="RAVN Giveaway"):
+        prize_input = discord.ui.TextInput(label="Prize", max_length=200)
+        duration_input = discord.ui.TextInput(label="Duration (minutes)", placeholder="60", max_length=6)
+        winners_input = discord.ui.TextInput(label="Number of winners", placeholder="1", max_length=2)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            try:
+                duration = max(1, min(10080, int(self.duration_input.value)))
+                winners = max(1, min(20, int(self.winners_input.value)))
+            except ValueError:
+                await interaction.response.send_message("❌ Duration and winners must be numbers.", ephemeral=True); return
+            ends_at = datetime.now(timezone.utc).timestamp() + duration * 60
+            view = GiveawayView(self.prize_input.value, winners, ends_at)
+            ACTIVE_GIVEAWAYS.append(view)
+            channel = interaction.channel
+            if not isinstance(channel, discord.TextChannel):
+                await interaction.response.send_message("❌ This panel must be used from a text channel.", ephemeral=True); return
+            embed = ravn_embed("🎉 RAVN GIVEAWAY", f"🏆 **PRIZE**\\n{self.prize_input.value}\\n\\n👥 **WINNERS**\\n{winners}\\n\\n⏰ **ENDS**\\n<t:{int(ends_at)}:R>", colour=RAVN_PURPLE, footer="RAVN Server Manager • Giveaways")
+            await interaction.response.send_message("🎉 Giveaway created.", ephemeral=True)
+            view.message = await channel.send(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=view)
+            asyncio.create_task(view.finish())
+
+    class StaffEventModal(discord.ui.Modal, title="RAVN Event"):
+        name_input = discord.ui.TextInput(label="Event name", max_length=100)
+        date_input = discord.ui.TextInput(label="Date", max_length=50)
+        time_input = discord.ui.TextInput(label="Time", max_length=50)
+        description_input = discord.ui.TextInput(label="Description", style=discord.TextStyle.paragraph, max_length=1000)
+        prize_input = discord.ui.TextInput(label="Prize", required=False, default="TBA", max_length=100)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            if not interaction.guild: return
+            channel = _find_channel(interaction.guild, "🎉・discord-events") or interaction.channel
+            if not isinstance(channel, discord.TextChannel):
+                await interaction.response.send_message("🎪 The event channel is not configured.", ephemeral=True); return
+            await channel.send(embed=brand_embed(event_embed(self.name_input.value, self.date_input.value, self.time_input.value, self.description_input.value, self.prize_input.value or "TBA", "TBA", "None"), bot_avatar_url(interaction.client)), view=EventRSVPView(self.name_input.value))
+            await interaction.response.send_message(f"🎪 Event posted in {channel.mention}.", ephemeral=True)
+
     class StaffDashboardView(discord.ui.View):
-        def __init__(self) -> None:
-            super().__init__(timeout=None)
+        def __init__(self) -> None: super().__init__(timeout=None)
 
         async def _staff_only(self, interaction: discord.Interaction) -> bool:
-            if isinstance(interaction.user, discord.Member) and (interaction.user.guild_permissions.manage_guild or interaction.user.guild_permissions.administrator or _is_staff(interaction.user)):
-                return True
-            await interaction.response.send_message("You do not have permission to use the staff dashboard.", ephemeral=True)
-            return False
+            if isinstance(interaction.user, discord.Member) and (interaction.user.guild_permissions.manage_guild or interaction.user.guild_permissions.administrator or _is_staff(interaction.user)): return True
+            await interaction.response.send_message("You do not have permission to use the staff dashboard.", ephemeral=True); return False
 
         @discord.ui.button(label="Tickets", emoji="🎫", style=discord.ButtonStyle.primary, row=0)
         async def tickets(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
-            channels = [channel.mention for channel in interaction.guild.text_channels if channel.topic and "ticket_owner:" in channel.topic and "state:closed" not in channel.topic] if interaction.guild else []
-            await interaction.response.send_message("🎫 **Open Tickets**\n" + ("\n".join(channels) if channels else "No open tickets."), ephemeral=True)
+            channels = [c for c in interaction.guild.text_channels if c.topic and "ticket_owner:" in c.topic and "state:closed" not in c.topic]
+            await interaction.response.send_message("🎫 **OPEN TICKETS**\\n" + ("\\n".join(c.mention for c in channels[:15]) if channels else "No open tickets.") + "\\n\\nOpen a ticket channel to use its claim/close controls.", ephemeral=True)
 
         @discord.ui.button(label="Punishments", emoji="⚖️", style=discord.ButtonStyle.secondary, row=0)
         async def punishments(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
-            await interaction.response.send_message("⚖️ Use /punishments to search punishment history or /punishment-remove to void a record.", ephemeral=True)
+            await interaction.response.send_message("⚖️ **Punishment Management**\\nUse /punishments for history and /punishment-remove to void a case. /punish creates a new case.", ephemeral=True)
 
         @discord.ui.button(label="Reports", emoji="🚨", style=discord.ButtonStyle.danger, row=0)
         async def reports(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
-            await interaction.response.send_message("🚨 Use /report to create a private player report.", ephemeral=True)
+            channels = [c for c in interaction.guild.text_channels if c.topic and "report" in c.topic.lower()]
+            await interaction.response.send_message("🚨 **REPORTS**\\n" + ("\\n".join(c.mention for c in channels[:15]) if channels else "No report channels found."), ephemeral=True)
 
         @discord.ui.button(label="Announcements", emoji="📢", style=discord.ButtonStyle.secondary, row=1)
         async def announcements(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
-            channel = _find_channel(interaction.guild, "📢・announcements") if interaction.guild else None
-            destination = channel.mention if channel else "not configured"
-            await interaction.response.send_message(f"📢 Announcements: {destination}", ephemeral=True)
+            await interaction.response.send_modal(StaffAnnouncementModal())
 
-        @discord.ui.button(label="Giveaways", emoji="🎉", style=discord.ButtonStyle.secondary, row=1)
+        @discord.ui.button(label="Giveaway", emoji="🎉", style=discord.ButtonStyle.secondary, row=1)
         async def giveaways(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
-            await interaction.response.send_message("🎉 Use /giveaway to start a giveaway.", ephemeral=True)
+            await interaction.response.send_modal(StaffGiveawayModal())
 
-        @discord.ui.button(label="Events", emoji="🎪", style=discord.ButtonStyle.secondary, row=1)
+        @discord.ui.button(label="Create Event", emoji="🎪", style=discord.ButtonStyle.secondary, row=1)
         async def events(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
-            await interaction.response.send_message("🎪 Use /event to publish an event.", ephemeral=True)
+            await interaction.response.send_modal(StaffEventModal())
 
         @discord.ui.button(label="Statistics", emoji="📊", style=discord.ButtonStyle.secondary, row=2)
         async def statistics(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
             guild = interaction.guild
-            await interaction.response.send_message(f"📊 **Server Statistics**\nMembers: **{guild.member_count if guild else 0}**\nChannels: **{len(guild.channels) if guild else 0}**\nRoles: **{len(guild.roles) if guild else 0}**", ephemeral=True)
+            bots = sum(1 for m in guild.members if m.bot)
+            humans = max(0, (guild.member_count or 0) - bots)
+            tickets = sum(1 for c in guild.text_channels if c.topic and "ticket_owner:" in c.topic and "state:closed" not in c.topic)
+            embed = ravn_embed("📊 LIVE SERVER STATISTICS", f"👥 Humans: **{humans:,}**\\n🤖 Bots: **{bots:,}**\\n💬 Text channels: **{len(guild.text_channels):,}**\\n🔊 Voice channels: **{len(guild.voice_channels):,}**\\n📁 Categories: **{len(guild.categories):,}**\\n🎭 Roles: **{len(guild.roles):,}**\\n🎫 Open tickets: **{tickets:,}**", colour=RAVN_PURPLE, footer="RAVN Server Manager • Live Statistics")
+            await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
 
         @discord.ui.button(label="Management", emoji="🔧", style=discord.ButtonStyle.success, row=2)
         async def management(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
-            await interaction.response.send_message("🔧 **Management**\nUse /announce, /patchnotes, /event, /giveaway, /punish, /clear and /setup-server.", ephemeral=True)
+            await interaction.response.send_message("🔧 **SERVER MANAGEMENT**\\n/patchnotes — publish patch notes\\n/announce — publish an announcement\\n/setup-server — manage ping-role setup\\n/clear-server — owner-only server cleanup", ephemeral=True)
+
 
     @bot.tree.command(name="staff-panel", description="Open the RAVN staff control centre.")
     @discord.app_commands.default_permissions(manage_guild=True)
