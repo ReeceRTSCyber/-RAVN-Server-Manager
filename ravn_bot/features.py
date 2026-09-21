@@ -155,7 +155,7 @@ def register(bot: discord.Client) -> None:
     ) -> None:
         if not interaction.guild:
             return
-        channel = _find_channel(interaction.guild, "📢・announcements") or interaction.channel
+        channel = _find_channel(interaction.guild, "🎪・server-events") or interaction.channel
         if not isinstance(channel, discord.TextChannel):
             return
         await channel.send(
