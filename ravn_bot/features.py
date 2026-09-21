@@ -24,6 +24,8 @@ from .case_system import create_case
 
 logger = logging.getLogger(__name__)
 
+ACTIVE_GIVEAWAYS: list[GiveawayView] = []
+
 PUNISHMENT_ROLE_NAMES = {
     "🔧 Head Admin",
     "🛡️ Admin",
@@ -312,6 +314,7 @@ def register(bot: discord.Client) -> None:
     ) -> None:
         ends_at = datetime.now(timezone.utc).timestamp() + duration_minutes * 60
         view = GiveawayView(prize, winners, ends_at)
+        ACTIVE_GIVEAWAYS.append(view)
         embed = ravn_embed(
             "🎉 RAVN GIVEAWAY",
             f"🏆 **PRIZE**\n{prize}\n\n👥 **WINNERS**\n{winners}\n\n⏰ **ENDS**\n<t:{int(ends_at)}:R>\n\nPress **🎉 ENTER GIVEAWAY** below to enter.",
@@ -365,3 +368,35 @@ def register(bot: discord.Client) -> None:
             embed=brand_embed(announcements_embed(title, body), bot_avatar_url(interaction.client))
         )
         await interaction.response.send_message(f"Announcement posted in {channel.mention}.", ephemeral=True)
+
+
+    @bot.tree.command(name="server-stats", description="Show detailed RAVN server statistics.")
+    @discord.app_commands.default_permissions(manage_guild=True)
+    @discord.app_commands.checks.has_permissions(manage_guild=True)
+    async def server_stats(interaction: discord.Interaction) -> None:
+        if not interaction.guild:
+            return
+        guild = interaction.guild
+        bots = sum(1 for member in guild.members if member.bot)
+        humans = max(0, (guild.member_count or 0) - bots)
+        open_tickets = sum(1 for ch in guild.text_channels if ch.topic and "ticket_owner:" in ch.topic and "state:closed" not in ch.topic)
+        embed = ravn_embed(
+            "📊 RAVN SERVER STATISTICS",
+            f"👥 Humans: **{humans:,}**\n🤖 Bots: **{bots:,}**\n💬 Text channels: **{len(guild.text_channels):,}**\n🔊 Voice channels: **{len(guild.voice_channels):,}**\n📁 Categories: **{len(guild.categories):,}**\n🎭 Roles: **{len(guild.roles):,}**\n🎫 Open tickets: **{open_tickets:,}**",
+            colour=RAVN_PURPLE,
+            footer="RAVN Server Manager • Statistics",
+        )
+        await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
+
+    @bot.tree.command(name="giveaway-status", description="Show active RAVN giveaways.")
+    @discord.app_commands.default_permissions(manage_guild=True)
+    @discord.app_commands.checks.has_permissions(manage_guild=True)
+    async def giveaway_status(interaction: discord.Interaction) -> None:
+        active = [g for g in ACTIVE_GIVEAWAYS if g.message and g.ends_at > datetime.now(timezone.utc).timestamp()]
+        if not active:
+            await interaction.response.send_message("🎉 There are no active giveaways.", ephemeral=True)
+            return
+        embed = ravn_embed("🎉 ACTIVE GIVEAWAYS", "Current giveaways managed by RAVN.", colour=RAVN_PURPLE)
+        for g in active:
+            embed.add_field(name=g.prize, value=f"👥 Winners: {g.winners}\n🎟️ Entries: {len(g.entries)}\n⏰ Ends: <t:{int(g.ends_at)}:R>", inline=False)
+        await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
