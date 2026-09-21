@@ -118,6 +118,23 @@ class GiveawayView(discord.ui.View):
             logger.warning("Could not finish giveaway message %s", self.message.id)
 
 
+class EventRSVPView(discord.ui.View):
+    def __init__(self, event_name: str) -> None:
+        super().__init__(timeout=None)
+        self.event_name = event_name
+        self.attendees: set[int] = set()
+
+    @discord.ui.button(label="RSVP", emoji="🎟️", style=discord.ButtonStyle.primary, custom_id="ravn:event:rsvp")
+    async def rsvp(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id in self.attendees:
+            self.attendees.remove(interaction.user.id)
+            await interaction.response.send_message("You have been removed from the RSVP list.", ephemeral=True)
+        else:
+            self.attendees.add(interaction.user.id)
+            await interaction.response.send_message(f"🎟️ RSVP confirmed for **{self.event_name}**. Attendees: **{len(self.attendees)}**.", ephemeral=True)
+
+
+
 def register(bot: discord.Client) -> None:
     @bot.tree.command(name="help", description="Open the RAVN Server Manager command centre.")
     async def help_command(interaction: discord.Interaction) -> None:
@@ -330,7 +347,8 @@ def register(bot: discord.Client) -> None:
             embed=brand_embed(
                 event_embed(name, date, time, description, prize, location, requirements),
                 bot_avatar_url(interaction.client),
-            )
+            ),
+            view=EventRSVPView(name),
         )
         await interaction.response.send_message(f"Event posted in {channel.mention}.", ephemeral=True)
 
