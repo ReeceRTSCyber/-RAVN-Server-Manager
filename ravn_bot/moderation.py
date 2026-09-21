@@ -6,7 +6,7 @@ from datetime import timedelta
 import discord
 
 from .config import STAFF_ROLE_NAMES
-from .embeds import DANGER, WARNING, ravn_embed
+from .embeds import DANGER, RAVN_PURPLE, WARNING, ravn_embed
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,8 @@ async def log_action(
         embed=ravn_embed(
             f"🛡️ {action}",
             f"**Target:** {target_text}\n**Moderator:** {moderator.mention}\n**Reason:** {reason}",
-            colour=DANGER if action in {"Ban", "Kick", "Timeout"} else WARNING,
-            footer="RAVN Moderation Logs",
+            colour=DANGER if action in {"Ban", "Kick", "Timeout"} else RAVN_PURPLE,
+            footer="RAVN Server Manager • Moderation Logs",
         )
     )
 
