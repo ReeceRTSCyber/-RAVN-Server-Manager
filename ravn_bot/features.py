@@ -652,8 +652,10 @@ def register(bot: discord.Client) -> None:
                 logger.exception("Automatic 4-hour event loop failed")
                 await asyncio.sleep(60)
 
-    if not any(task.get_name() == "ravn-automatic-events" for task in asyncio.all_tasks()):
-        task = asyncio.create_task(_automatic_event_loop(), name="ravn-automatic-events")
+    # register() runs during bot startup, before an asyncio event loop is running.
+    # asyncio.all_tasks() raises RuntimeError on Python 3.13 in that situation.
+    # The scheduler has its own duplicate-start guard, so create the task directly.
+    asyncio.get_event_loop().create_task(_automatic_event_loop(), name="ravn-automatic-events")
 
     @bot.tree.command(name="vault-event", description="Start a first-correct vault code event.")
     @discord.app_commands.default_permissions(manage_guild=True)
