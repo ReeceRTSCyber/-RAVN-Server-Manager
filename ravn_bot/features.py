@@ -290,15 +290,15 @@ def register(bot: discord.Client) -> None:
     async def recruit(interaction: discord.Interaction) -> None:
         await interaction.response.send_modal(RecruitmentModal())
 
-    @bot.tree.command(name="patchnotes", description="Publish server patch notes to the change log.")
+    @bot.tree.command(name="patchnotes", description="Publish server patch notes to the server patch channel.")
     @discord.app_commands.default_permissions(manage_guild=True)
     @discord.app_commands.checks.has_permissions(manage_guild=True)
     async def patchnotes(interaction: discord.Interaction, version: str, changes: str) -> None:
         if not interaction.guild:
             return
-        channel = _find_channel(interaction.guild, "📝・change-log")
+        channel = _find_channel(interaction.guild, "⚙️・server-patch")
         if not channel:
-            await interaction.response.send_message("The change log channel does not exist yet. Run `/setup-server` first.", ephemeral=True)
+            await interaction.response.send_message("The ⚙️・server-patch channel does not exist. Please create it before using /patchnotes.", ephemeral=True)
             return
         await channel.send(
             embed=brand_embed(patch_notes_embed(version, changes), bot_avatar_url(interaction.client))
