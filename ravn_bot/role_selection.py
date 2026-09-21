@@ -120,9 +120,9 @@ class MiscRoleView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
         roles = [
-            ("PS5", PLATFORM_ROLE_NAMES[0], "<:PS4>"),
+            ("PS5", PLATFORM_ROLE_NAMES[0], "🎮"),
             ("PC", PLATFORM_ROLE_NAMES[1], "🖥️"),
-            ("Xbox", PLATFORM_ROLE_NAMES[2], "<:Xbox>"),
+            ("Xbox", PLATFORM_ROLE_NAMES[2], "🟢"),
             ("Europe", REGION_ROLE_NAMES[0], "🇩🇪"),
             ("NA", REGION_ROLE_NAMES[1], "🌎"),
             ("UK", REGION_ROLE_NAMES[2], "🇬🇧"),
