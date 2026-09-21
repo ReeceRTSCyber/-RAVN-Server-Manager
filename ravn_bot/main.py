@@ -19,6 +19,8 @@ from .tickets import register as register_tickets
 
 logger = logging.getLogger(__name__)
 
+UNVERIFIED_ROLE_NAME = "Unverified"
+
 
 class RavnBot(commands.Bot):
     def __init__(self, settings) -> None:
@@ -57,6 +59,18 @@ class RavnBot(commands.Bot):
         )
 
     async def on_member_join(self, member: discord.Member) -> None:
+        unverified_role = discord.utils.get(member.guild.roles, name=UNVERIFIED_ROLE_NAME)
+        if unverified_role:
+            try:
+                if member.guild.me and unverified_role < member.guild.me.top_role:
+                    await member.add_roles(unverified_role, reason="RAVN new member verification")
+            except discord.Forbidden:
+                logger.warning("Could not assign Unverified role to %s in guild %s", member.id, member.guild.id)
+            except discord.HTTPException:
+                logger.exception("Failed to assign Unverified role to %s", member.id)
+        else:
+            logger.warning("Unverified role not found in guild %s", member.guild.id)
+
         channel = discord.utils.get(member.guild.text_channels, name="👋・welcome")
         if channel:
             await channel.send(embed=brand_embed(welcome_embed(member), bot_avatar_url(self)))
