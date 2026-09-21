@@ -212,7 +212,17 @@ class TicketPanelView(discord.ui.View):
 
     @discord.ui.button(label="Support", emoji="🎫", style=discord.ButtonStyle.primary, custom_id="ravn:ticket:support")
     async def support(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.send_modal(TicketDetailsModal("support"))
+        logger.info(
+            "TICKET BUTTON | support | user=%s | guild=%s | channel=%s",
+            interaction.user,
+            interaction.guild_id,
+            interaction.channel_id,
+        )
+        try:
+            await interaction.response.send_modal(TicketDetailsModal("support"))
+            logger.info("TICKET MODAL SENT | support | user=%s", interaction.user)
+        except Exception:
+            logger.exception("TICKET BUTTON FAILED | support | user=%s", interaction.user)
 
     @discord.ui.button(label="Player Report", emoji="🚨", style=discord.ButtonStyle.danger, custom_id="ravn:ticket:player-report")
     async def player_report(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
