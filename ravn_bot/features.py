@@ -469,8 +469,99 @@ def register(bot: discord.Client) -> None:
         @discord.ui.button(label="Management", emoji="🔧", style=discord.ButtonStyle.success, row=2)
         async def management(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
-            await interaction.response.send_message("🔧 **SERVER MANAGEMENT**\\n/patchnotes — publish patch notes\\n/announce — publish an announcement\\n/setup-server — manage ping-role setup\\n/clear-server — owner-only server cleanup", ephemeral=True)
+            await interaction.response.send_message(
+                embed=brand_embed(
+                    ravn_embed(
+                        "🔧 SERVER MANAGEMENT",
+                        "Use the controls below to manage the server without rebuilding your Discord layout.",
+                        colour=RAVN_PURPLE,
+                        footer="RAVN Server Manager • Management Centre",
+                    ),
+                    bot_avatar_url(interaction.client),
+                ),
+                view=StaffManagementView(),
+                ephemeral=True,
+            )
 
+
+    class StaffManagementView(discord.ui.View):
+        def __init__(self) -> None:
+            super().__init__(timeout=300)
+
+        async def _allowed(self, interaction: discord.Interaction) -> bool:
+            return await StaffDashboardView._staff_only(self, interaction)
+
+        @discord.ui.button(label="Announcements", emoji="📢", style=discord.ButtonStyle.primary, row=0)
+        async def announcements_manage(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._allowed(interaction): return
+            await interaction.response.send_modal(StaffAnnouncementModal())
+
+        @discord.ui.button(label="Patch Notes", emoji="📝", style=discord.ButtonStyle.primary, row=0)
+        async def patchnotes_manage(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._allowed(interaction): return
+            await interaction.response.send_modal(StaffPatchNotesModal())
+
+        @discord.ui.button(label="Ping Roles", emoji="🎭", style=discord.ButtonStyle.success, row=0)
+        async def ping_roles_manage(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._allowed(interaction): return
+            if not interaction.guild: return
+            await interaction.response.defer(ephemeral=True)
+            try:
+                from .setup_server import provision_guild
+                result = await provision_guild(interaction.guild)
+                await interaction.followup.send(
+                    f"🎭 Ping roles refreshed. Created **{result.roles_created}** missing ping role(s) and refreshed the existing role-selection panel. Your server layout was not changed.",
+                    ephemeral=True,
+                )
+            except discord.Forbidden:
+                await interaction.followup.send("❌ Discord denied the ping-role update. Check Manage Roles.", ephemeral=True)
+            except discord.HTTPException:
+                logger.exception("Failed to refresh ping roles from staff management panel")
+                await interaction.followup.send("❌ Discord could not refresh the ping roles right now.", ephemeral=True)
+
+        @discord.ui.button(label="Server Statistics", emoji="📊", style=discord.ButtonStyle.secondary, row=1)
+        async def stats_manage(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._allowed(interaction): return
+            guild = interaction.guild
+            bots = sum(1 for m in guild.members if m.bot)
+            humans = max(0, (guild.member_count or 0) - bots)
+            tickets = sum(1 for c in guild.text_channels if c.topic and "ticket_owner:" in c.topic and "state:closed" not in c.topic)
+            embed = ravn_embed(
+                "📊 SERVER MANAGEMENT • STATISTICS",
+                f"👥 Humans: **{humans:,}**\\n🤖 Bots: **{bots:,}**\\n💬 Text channels: **{len(guild.text_channels):,}**\\n🔊 Voice channels: **{len(guild.voice_channels):,}**\\n📁 Categories: **{len(guild.categories):,}**\\n🎭 Roles: **{len(guild.roles):,}**\\n🎫 Open tickets: **{tickets:,}**",
+                colour=RAVN_PURPLE,
+                footer="RAVN Server Manager • Management Centre",
+            )
+            await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
+
+        @discord.ui.button(label="Owner Cleanup", emoji="🧹", style=discord.ButtonStyle.danger, row=1)
+        async def cleanup_manage(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not interaction.guild or interaction.guild.owner_id != interaction.user.id:
+                await interaction.response.send_message("Only the server owner can use the cleanup control.", ephemeral=True)
+                return
+            await interaction.response.send_message(
+                "🧹 **OWNER CLEANUP**\\nThis runs the existing /clear-server cleanup command. It can remove server content, so use it only when you intentionally want the cleanup.",
+                ephemeral=True,
+            )
+
+        @discord.ui.button(label="Close", emoji="✖️", style=discord.ButtonStyle.secondary, row=1)
+        async def close_manage(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._allowed(interaction): return
+            await interaction.response.edit_message(view=None)
+
+    class StaffPatchNotesModal(discord.ui.Modal, title="RAVN Patch Notes"):
+        version_input = discord.ui.TextInput(label="Version", placeholder="v1.2.0", max_length=50)
+        changes_input = discord.ui.TextInput(label="Changes", style=discord.TextStyle.paragraph, max_length=1800)
+
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            if not interaction.guild or not isinstance(interaction.user, discord.Member):
+                return
+            channel = _find_channel(interaction.guild, "⚙️・server-patch")
+            if not isinstance(channel, discord.TextChannel):
+                await interaction.response.send_message("⚙️ The server patch channel is not configured.", ephemeral=True)
+                return
+            await channel.send(embed=brand_embed(patch_notes_embed(self.version_input.value, self.changes_input.value), bot_avatar_url(interaction.client)))
+            await interaction.response.send_message(f"📝 Patch notes posted in {channel.mention}.", ephemeral=True)
 
     @bot.tree.command(name="staff-panel", description="Open the RAVN staff control centre.")
     @discord.app_commands.default_permissions(manage_guild=True)
