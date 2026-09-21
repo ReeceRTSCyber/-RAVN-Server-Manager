@@ -40,6 +40,10 @@ def _management(member: discord.Member) -> bool:
     return member.guild_permissions.administrator or any(r.name in MANAGEMENT_ROLE_NAMES for r in member.roles)
 
 
+def _staff_check(interaction: discord.Interaction) -> bool:
+    return isinstance(interaction.user, discord.Member) and _staff(interaction.user)
+
+
 def create_case(guild_id: int, kind: str, tribe: str, rule: str, punishment: str, issued_by: int, evidence: str = "") -> int:
     db = _db()
     cur = db.execute(
@@ -55,7 +59,7 @@ def create_case(guild_id: int, kind: str, tribe: str, rule: str, punishment: str
 def register(bot: discord.Client) -> None:
     @bot.tree.command(name="punishments", description="View punishment history for a tribe.")
     @app_commands.default_permissions(manage_guild=True)
-    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.check(_staff_check)
     async def punishments(interaction: discord.Interaction, tribe: str) -> None:
         if not interaction.guild:
             return
@@ -80,7 +84,7 @@ def register(bot: discord.Client) -> None:
 
     @bot.tree.command(name="punishment-remove", description="Void an existing punishment case.")
     @app_commands.default_permissions(manage_guild=True)
-    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.check(_management)
     async def punishment_remove(interaction: discord.Interaction, case_number: int, reason: str) -> None:
         if not interaction.guild or not isinstance(interaction.user, discord.Member) or not _management(interaction.user):
             await interaction.response.send_message("Only management can void punishment cases.", ephemeral=True)
@@ -96,14 +100,72 @@ def register(bot: discord.Client) -> None:
 
     @bot.tree.command(name="appeal", description="Submit a punishment appeal to staff.")
     async def appeal(interaction: discord.Interaction, case_number: int, reason: str) -> None:
-        if not interaction.guild:
+        if not interaction.guild or not isinstance(interaction.user, discord.Member):
             return
-        channel = discord.utils.get(interaction.guild.text_channels, name="🛡️・STAFF REPORT TICKET")
-        if not channel:
-            await interaction.response.send_message("The staff report category is not configured.", ephemeral=True)
+
+        db = _db()
+        row = db.execute(
+            "SELECT * FROM cases WHERE guild_id=? AND case_id=? AND kind='punishment'",
+            (interaction.guild.id, case_number),
+        ).fetchone()
+        db.close()
+        if not row:
+            await interaction.response.send_message(
+                f"CASE-{case_number:06d} was not found in this server.",
+                ephemeral=True,
+            )
             return
+
+        category = discord.utils.get(interaction.guild.categories, name="🛡️・STAFF REPORT TICKET")
+        if not category:
+            await interaction.response.send_message(
+                "The 🛡️・STAFF REPORT TICKET category is missing. Please contact staff.",
+                ephemeral=True,
+            )
+            return
+
+        overwrites: dict[discord.abc.Snowflake, discord.PermissionOverwrite] = {
+            interaction.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            interaction.user: discord.PermissionOverwrite(
+                view_channel=True, send_messages=True, attach_files=True, read_message_history=True
+            ),
+        }
+        for role in interaction.guild.roles:
+            if role.name in MANAGEMENT_ROLE_NAMES:
+                overwrites[role] = discord.PermissionOverwrite(
+                    view_channel=True, send_messages=True, read_message_history=True, manage_messages=True
+                )
+
+        channel = await category.create_text_channel(
+            f"appeal-case-{case_number:06d}-{interaction.user.id}"[:100],
+            overwrites=overwrites,
+            topic=(
+                f"ravn_appeal;case:{case_number};appeal_by:{interaction.user.id};"
+                f"state:open;created_at:{datetime.now(timezone.utc).isoformat()}"
+            ),
+            reason=f"RAVN appeal for CASE-{case_number:06d}",
+        )
+        embed = ravn_embed(
+            f"📩 PUNISHMENT APPEAL • CASE-{case_number:06d}",
+            "A punishment appeal has been opened for management review.",
+            colour=RAVN_PURPLE,
+            footer="RAVN Server Manager • Appeals",
+        )
+        embed.add_field(name="🏹 Tribe", value=row["tribe"], inline=True)
+        embed.add_field(name="📜 Rule", value=row["rule"], inline=True)
+        embed.add_field(name="🔨 Punishment", value=row["punishment"], inline=False)
+        embed.add_field(name="📝 Appeal Reason", value=reason, inline=False)
+        embed.add_field(
+            name="📎 Evidence",
+            value="Upload screenshots, videos or other supporting evidence in this channel.",
+            inline=False,
+        )
+        await channel.send(
+            content=interaction.user.mention,
+            embed=brand_embed(embed, bot_avatar_url(interaction.client)),
+        )
         await interaction.response.send_message(
-            f"📩 Appeal submitted for **CASE-{case_number:06d}**. Please open a staff report ticket and provide your evidence.\n\n**Reason:** {reason}",
+            f"📩 Your appeal for **CASE-{case_number:06d}** has been opened: {channel.mention}",
             ephemeral=True,
         )
 
@@ -138,7 +200,7 @@ def register(bot: discord.Client) -> None:
 
     @bot.tree.command(name="case", description="View a RAVN case by case number.")
     @app_commands.default_permissions(manage_guild=True)
-    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.check(_staff_check)
     async def case(interaction: discord.Interaction, case_number: int) -> None:
         if not interaction.guild:
             return
@@ -154,4 +216,8 @@ def register(bot: discord.Client) -> None:
         embed.add_field(name="🔨 Action", value=row["punishment"], inline=False)
         embed.add_field(name="👮 Issued By", value=f"<@{row['issued_by']}>", inline=True)
         embed.add_field(name="📌 Status", value=row["status"].upper(), inline=True)
+        issued_at = datetime.fromisoformat(row["issued_at"])
+        embed.add_field(name="🕒 Issued", value=f"<t:{int(issued_at.timestamp())}:F>", inline=True)
+        if row["evidence"]:
+            embed.add_field(name="📎 Evidence", value=row["evidence"], inline=False)
         await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
