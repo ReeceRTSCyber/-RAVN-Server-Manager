@@ -55,6 +55,19 @@ def _find_channel(guild: discord.Guild, name: str) -> discord.TextChannel | None
     return discord.utils.get(guild.text_channels, name=name)
 
 
+def _scramble_dino(name: str) -> str:
+    letters = list(name)
+    if len(letters) < 2:
+        return name
+    original = "".join(letters)
+    for _ in range(10):
+        random.shuffle(letters)
+        scrambled = "".join(letters)
+        if scrambled.casefold() != original.casefold():
+            return scrambled
+    return scrambled
+
+
 class RecruitmentModal(discord.ui.Modal, title="Tribe Recruitment Application"):
     tribe_name = discord.ui.TextInput(label="Tribe name", max_length=80)
     platform = discord.ui.TextInput(label="Platform", placeholder="PC, Xbox, PlayStation, or crossplay", max_length=60)
@@ -500,10 +513,11 @@ def register(bot: discord.Client) -> None:
             )
         else:
             answer = random.choice(DINO_EVENT_ANSWERS)
+            scrambled = _scramble_dino(answer)
             view = DinoGuessView(answer, "Store Gift Card")
             embed = ravn_embed(
                 "🦖 RAVN DINO GUESS",
-                "🧩 **MYSTERY DINOSAUR**\n\nA dinosaur has been randomly selected.\n\nBe the **first** person to guess it correctly and win:\n🎁 **Store Gift Card**\n\nPress **🦖 GUESS THE DINO** to submit your guess.\n\n⏰ A new challenge runs every **4 hours**.\n⚠️ One correct answer wins.",
+                f"🧩 **UNSCRAMBLE THE DINOSAUR**\\n\\n**{scrambled.upper()}**\\n\\nThe dinosaur's letters have been mixed up. Can you work out the name?\\n\\nBe the **first** person to guess it correctly and win:\\n🎁 **Store Gift Card**\\n\\nPress **🦖 GUESS THE DINO** to submit your guess.\\n\\n⏰ A new challenge runs every **4 hours**.\\n⚠️ One correct answer wins.",
                 colour=RAVN_PURPLE,
                 footer="RAVN Server Manager • Automatic 4-Hour Events",
             )
