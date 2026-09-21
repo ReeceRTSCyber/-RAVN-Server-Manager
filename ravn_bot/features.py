@@ -173,10 +173,10 @@ def register(bot: discord.Client) -> None:
         if not interaction.guild:
             return
 
-        channel = _find_channel(interaction.guild, "🔨・punishments")
+        channel = _find_channel(interaction.guild, "⛔・punishments")
         if not channel:
             await interaction.response.send_message(
-                "The 🔨・punishments channel does not exist. Please create it in the staff section.",
+                "The ⛔・punishments channel does not exist. Please create it in the staff section.",
                 ephemeral=True,
             )
             return
