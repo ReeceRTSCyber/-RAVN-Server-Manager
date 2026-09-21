@@ -134,31 +134,74 @@ def register(bot: discord.Client) -> None:
         embed.add_field(name="⚙️ Management", value="/setup-server — repair and provision the server", inline=False)
         await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
 
-    @bot.tree.command(name="staff-panel", description="Open the RAVN staff dashboard.")
+    class StaffDashboardView(discord.ui.View):
+        def __init__(self) -> None:
+            super().__init__(timeout=None)
+
+        async def _staff_only(self, interaction: discord.Interaction) -> bool:
+            if isinstance(interaction.user, discord.Member) and (interaction.user.guild_permissions.manage_guild or interaction.user.guild_permissions.administrator or _is_staff(interaction.user)):
+                return True
+            await interaction.response.send_message("You do not have permission to use the staff dashboard.", ephemeral=True)
+            return False
+
+        @discord.ui.button(label="Tickets", emoji="🎫", style=discord.ButtonStyle.primary, row=0)
+        async def tickets(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._staff_only(interaction): return
+            channels = [channel.mention for channel in interaction.guild.text_channels if channel.topic and "ticket_owner:" in channel.topic and "state:closed" not in channel.topic] if interaction.guild else []
+            await interaction.response.send_message("🎫 **Open Tickets**\n" + ("\n".join(channels) if channels else "No open tickets."), ephemeral=True)
+
+        @discord.ui.button(label="Punishments", emoji="⚖️", style=discord.ButtonStyle.secondary, row=0)
+        async def punishments(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._staff_only(interaction): return
+            await interaction.response.send_message("⚖️ Use /punishments to search punishment history or /punishment-remove to void a record.", ephemeral=True)
+
+        @discord.ui.button(label="Reports", emoji="🚨", style=discord.ButtonStyle.danger, row=0)
+        async def reports(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._staff_only(interaction): return
+            await interaction.response.send_message("🚨 Use /report to create a private player report.", ephemeral=True)
+
+        @discord.ui.button(label="Announcements", emoji="📢", style=discord.ButtonStyle.secondary, row=1)
+        async def announcements(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._staff_only(interaction): return
+            channel = _find_channel(interaction.guild, "📢・announcements") if interaction.guild else None
+            await interaction.response.send_message(f"📢 Announcements: {channel.mention if channel else "not configured."}", ephemeral=True)
+
+        @discord.ui.button(label="Giveaways", emoji="🎉", style=discord.ButtonStyle.secondary, row=1)
+        async def giveaways(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._staff_only(interaction): return
+            await interaction.response.send_message("🎉 Use /giveaway to start a giveaway.", ephemeral=True)
+
+        @discord.ui.button(label="Events", emoji="🎪", style=discord.ButtonStyle.secondary, row=1)
+        async def events(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._staff_only(interaction): return
+            await interaction.response.send_message("🎪 Use /event to publish an event.", ephemeral=True)
+
+        @discord.ui.button(label="Statistics", emoji="📊", style=discord.ButtonStyle.secondary, row=2)
+        async def statistics(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._staff_only(interaction): return
+            guild = interaction.guild
+            await interaction.response.send_message(f"📊 **Server Statistics**\nMembers: **{guild.member_count if guild else 0}**\nChannels: **{len(guild.channels) if guild else 0}**\nRoles: **{len(guild.roles) if guild else 0}**", ephemeral=True)
+
+        @discord.ui.button(label="Management", emoji="🔧", style=discord.ButtonStyle.success, row=2)
+        async def management(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+            if not await self._staff_only(interaction): return
+            await interaction.response.send_message("🔧 **Management**\nUse /announce, /patchnotes, /event, /giveaway, /punish, /clear and /setup-server.", ephemeral=True)
+
+    @bot.tree.command(name="staff-panel", description="Open the RAVN staff control centre.")
     @discord.app_commands.default_permissions(manage_guild=True)
     @discord.app_commands.checks.has_permissions(manage_guild=True)
     async def staff_panel(interaction: discord.Interaction) -> None:
-        if not interaction.guild:
-            return
-        open_tickets = sum(
-            1 for channel in interaction.guild.text_channels
-            if channel.topic and "ticket_owner:" in channel.topic and "state:closed" not in channel.topic
-        )
-        embed = ravn_embed(
-            "🛡️ RAVN STAFF PANEL",
-            "Live overview of the server management system.",
-            colour=RAVN_PURPLE,
-            footer="RAVN Server Manager • Staff Dashboard",
-        )
-        embed.add_field(name="👥 Members", value=str(interaction.guild.member_count or 0), inline=True)
-        embed.add_field(name="🎫 Open Tickets", value=str(open_tickets), inline=True)
-        embed.add_field(name="📁 Channels", value=str(len(interaction.guild.channels)), inline=True)
-        embed.add_field(name="🟢 Bot Status", value="ONLINE", inline=True)
-        embed.add_field(name="🎫 Tickets", value="Use the ticket panel to manage support requests.", inline=False)
-        embed.add_field(name="🔨 Moderation", value="Use the moderation commands to manage members and log actions.", inline=False)
-        embed.add_field(name="📋 Logs", value="Ticket transcripts and moderation actions are sent to the configured log channels.", inline=False)
-        await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
-
+        if not interaction.guild: return
+        open_tickets = sum(1 for channel in interaction.guild.text_channels if channel.topic and "ticket_owner:" in channel.topic and "state:closed" not in channel.topic)
+        embed = ravn_embed("🦅 RAVN CONTROL CENTRE", "Central staff dashboard for your ARK Survival Ascended community.", colour=RAVN_PURPLE, footer="RAVN Server Manager • Staff Control Centre")
+        embed.add_field(name="👥 MEMBERS", value=f"**{interaction.guild.member_count or 0:,}**", inline=True)
+        embed.add_field(name="🎫 OPEN TICKETS", value=f"**{open_tickets}**", inline=True)
+        embed.add_field(name="⚖️ PUNISHMENTS", value="**Use /punishments**", inline=True)
+        embed.add_field(name="🚨 REPORTS", value="**Use /report**", inline=True)
+        embed.add_field(name="🎪 EVENTS", value="**Use /event**", inline=True)
+        embed.add_field(name="🟢 BOT STATUS", value="**ONLINE**", inline=True)
+        embed.add_field(name="━━━━━━━━━━━━━━━━━━━━━━━━━━━━", value="🎫 Tickets     ⚖️ Punishments     🚨 Reports\n📢 Announcements     🎉 Giveaways     🎪 Events\n📊 Statistics     🔧 Server Management", inline=False)
+        await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=StaffDashboardView(), ephemeral=True)
     @bot.tree.command(name="punish", description="Create a formal tribe punishment record with evidence.")
     @discord.app_commands.check(_can_issue_punishment)
     async def punish(
