@@ -143,6 +143,7 @@ INFO_CHANNELS = {"📜 INFORMATION"}
 
 # Retired layout objects are removed by the next administrator-run /setup-server.
 REMOVED_CATEGORIES = {
+    "🎫 SUPPORT",
     "⚔️ ARK PVP",
     "🧬 BREEDING",
     "💀 BOSSES & PROGRESSION",
