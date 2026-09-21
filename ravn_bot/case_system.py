@@ -44,6 +44,10 @@ def _staff_check(interaction: discord.Interaction) -> bool:
     return isinstance(interaction.user, discord.Member) and _staff(interaction.user)
 
 
+def _management_check(interaction: discord.Interaction) -> bool:
+    return isinstance(interaction.user, discord.Member) and _management(interaction.user)
+
+
 def create_case(guild_id: int, kind: str, tribe: str, rule: str, punishment: str, issued_by: int, evidence: str = "") -> int:
     db = _db()
     cur = db.execute(
@@ -84,7 +88,7 @@ def register(bot: discord.Client) -> None:
 
     @bot.tree.command(name="punishment-remove", description="Void an existing punishment case.")
     @app_commands.default_permissions(manage_guild=True)
-    @app_commands.check(_management)
+    @app_commands.check(_management_check)
     async def punishment_remove(interaction: discord.Interaction, case_number: int, reason: str) -> None:
         if not interaction.guild or not isinstance(interaction.user, discord.Member) or not _management(interaction.user):
             await interaction.response.send_message("Only management can void punishment cases.", ephemeral=True)
