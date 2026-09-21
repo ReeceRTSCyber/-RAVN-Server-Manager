@@ -50,6 +50,18 @@ LOGO_FILENAME = "ravn-logo.png"
 DEVELOPER_ROLE_NAME = "💻 Developer"
 DEVELOPER_ROLE_ICON_EMOJI_ID = "1551476412941078529"
 
+PING_ROLE_ICONS = {
+    "📣 Small Announcements": "📣",
+    "🎉 Giveaway Ping": "🎉",
+    "🔄 Rollback Ping": "🔄",
+    "♻️ Restart Ping": "♻️",
+    "🦖 Event Dino Ping": "🦖",
+    "🔻 Event Crate Ping": "🔻",
+    "🪨 Golem Ping": "🪨",
+    "🚀 Events Ping": "🚀",
+    "🎉 Discord Event Ping": "🎉",
+}
+
 
 @dataclass
 class SetupResult:
@@ -147,8 +159,6 @@ async def ensure_roles(guild: discord.Guild, result: SetupResult) -> dict[str, d
             roles[name] = created
             result.roles_created += 1
 
-    # Discord creates new roles near the bottom. Set the requested hierarchy
-    # explicitly while preserving the managed integration roles.
     ordered = [name for group in ROLE_GROUPS.values() for name in group]
     try:
         positions = {roles[name]: index + 1 for index, name in enumerate(reversed(ordered))}
@@ -354,10 +364,10 @@ async def _seed_embed(
 
 
 async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[str, discord.Role]:
-    """Create only the self-assignable ping roles used by the role panel.
+    """Create/update the self-assignable ping roles used by the role panel.
 
-    This intentionally does not create/reorder any other roles and does not
-    create, edit, or delete categories/channels.
+    The role names keep their existing emojis, and each ping role also gets
+    the matching emoji as its actual Discord role icon.
     """
     from .config import PING_ROLE_NAMES
 
@@ -366,18 +376,34 @@ async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[s
 
     for name in PING_ROLE_NAMES:
         existing = _role(guild, name)
+
         if existing:
             roles[name] = existing
-            continue
+        else:
+            created = await guild.create_role(
+                name=name,
+                permissions=discord.Permissions.none(),
+                mentionable=name in mentionable,
+                reason="RAVN Server Manager ping roles",
+            )
+            roles[name] = created
+            result.roles_created += 1
 
-        created = await guild.create_role(
-            name=name,
-            permissions=discord.Permissions.none(),
-            mentionable=name in mentionable,
-            reason="RAVN Server Manager ping roles",
-        )
-        roles[name] = created
-        result.roles_created += 1
+        # Apply the matching Unicode emoji as the role's actual icon.
+        # This also updates existing roles when /setup-server is run again.
+        icon_emoji = PING_ROLE_ICONS.get(name)
+        if icon_emoji:
+            try:
+                await roles[name].edit(
+                    unicode_emoji=icon_emoji,
+                    reason="RAVN Server Manager ping role icon",
+                )
+            except (discord.Forbidden, discord.HTTPException, TypeError) as exc:
+                logger.warning(
+                    "Could not set icon for ping role %s: %s",
+                    name,
+                    exc,
+                )
 
     return roles
 
@@ -466,11 +492,6 @@ def setup_command(bot: discord.Client) -> None:
             return
         try:
             result = await provision_guild(interaction.guild)
-            cleanup_note = (
-                f"{result.cleanup_failures} retired objects could not be removed. "
-                if result.cleanup_failures
-                else ""
-            )
             summary = (
                 "Ping-role setup complete. "
                 f"Created {result.roles_created} missing ping role(s) and refreshed {result.messages_seeded} role panel(s). "
