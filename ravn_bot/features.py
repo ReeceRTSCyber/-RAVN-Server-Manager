@@ -23,6 +23,22 @@ from .tickets import _is_staff
 
 logger = logging.getLogger(__name__)
 
+PUNISHMENT_ROLE_NAMES = {
+    "🔧 Head Admin",
+    "🛡️ Admin",
+    "⚡ Server Manager",
+    "🛡️ Co-Owner",
+    "👑 Owner",
+}
+
+
+def _can_issue_punishment(interaction: discord.Interaction) -> bool:
+    if not isinstance(interaction.user, discord.Member):
+        return False
+    if interaction.user.guild_permissions.administrator:
+        return True
+    return any(role.name in PUNISHMENT_ROLE_NAMES for role in interaction.user.roles)
+
 
 def _find_channel(guild: discord.Guild, name: str) -> discord.TextChannel | None:
     return discord.utils.get(guild.text_channels, name=name)
@@ -114,6 +130,7 @@ def register(bot: discord.Client) -> None:
         embed.add_field(name="🎉 Community", value="/giveaway • /event • /recruit", inline=True)
         embed.add_field(name="📢 Server", value="/announce • /patchnotes", inline=True)
         embed.add_field(name="🛡️ Moderation", value="/warn • /timeout • /kick • /ban • /unban • /clear", inline=False)
+        embed.add_field(name="⚖️ Punishments", value="/punish — create a formal tribe punishment record with evidence", inline=False)
         embed.add_field(name="⚙️ Management", value="/setup-server — repair and provision the server", inline=False)
         await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
 
@@ -141,6 +158,67 @@ def register(bot: discord.Client) -> None:
         embed.add_field(name="🔨 Moderation", value="Use the moderation commands to manage members and log actions.", inline=False)
         embed.add_field(name="📋 Logs", value="Ticket transcripts and moderation actions are sent to the configured log channels.", inline=False)
         await interaction.response.send_message(embed=brand_embed(embed, bot_avatar_url(interaction.client)), ephemeral=True)
+
+    @bot.tree.command(name="punish", description="Create a formal tribe punishment record with evidence.")
+    @discord.app_commands.check(_can_issue_punishment)
+    async def punish(
+        interaction: discord.Interaction,
+        tribe_name: str,
+        rule_broken: str,
+        punishment: str,
+        evidence_1: discord.Attachment | None = None,
+        evidence_2: discord.Attachment | None = None,
+        evidence_3: discord.Attachment | None = None,
+    ) -> None:
+        if not interaction.guild:
+            return
+
+        channel = _find_channel(interaction.guild, "🔨・punishments")
+        if not channel:
+            await interaction.response.send_message(
+                "The 🔨・punishments channel does not exist. Please create it in the staff section.",
+                ephemeral=True,
+            )
+            return
+
+        evidence = [item for item in (evidence_1, evidence_2, evidence_3) if item]
+        evidence_lines = []
+        for index, attachment in enumerate(evidence, start=1):
+            evidence_lines.append(f"**Evidence {index}:** [View attachment]({attachment.url})")
+        evidence_text = "\n".join(evidence_lines) if evidence_lines else "No screenshots or videos attached."
+
+        embed = ravn_embed(
+            "⚖️ RAVN PUNISHMENT RECORD",
+            f"A formal punishment has been issued against **{tribe_name}**.",
+            colour=RAVN_PURPLE,
+            footer="RAVN Server Manager • Punishment System",
+        )
+        embed.add_field(name="🏹 Tribe", value=tribe_name, inline=True)
+        embed.add_field(name="📜 Rule Broken", value=rule_broken, inline=True)
+        embed.add_field(name="🔨 Punishment", value=punishment, inline=False)
+        embed.add_field(name="👮 Issued By", value=f"{interaction.user.mention}\n`{interaction.user}`", inline=True)
+        embed.add_field(name="🕒 Issued At", value=f"<t:{int(datetime.now(timezone.utc).timestamp())}:F>", inline=True)
+        embed.add_field(name="📎 Evidence", value=evidence_text, inline=False)
+
+        first_image = next(
+            (
+                attachment
+                for attachment in evidence
+                if attachment.content_type and attachment.content_type.startswith("image/")
+            ),
+            None,
+        )
+        if first_image:
+            embed.set_image(url=first_image.url)
+
+        await channel.send(
+            embed=brand_embed(embed, bot_avatar_url(interaction.client)),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        await interaction.response.send_message(
+            f"✅ Punishment record created in {channel.mention}.",
+            ephemeral=True,
+        )
 
     @bot.tree.command(name="recruit", description="Open a form to publish a tribe recruitment post.")
     async def recruit(interaction: discord.Interaction) -> None:
