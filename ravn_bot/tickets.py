@@ -166,23 +166,44 @@ async def create_ticket(
 class TicketDetailsModal(discord.ui.Modal):
     def __init__(self, ticket_type: str) -> None:
         label, _description = TICKET_TYPES[ticket_type]
-        super().__init__(title=f"{label} details"[:45])
+        super().__init__(title=f"{label} • Ticket Details"[:45])
         self.ticket_type = ticket_type
-        self.name_input = discord.ui.TextInput(
-            label="Name / tribe / player",
-            placeholder="Who is this ticket about?",
-            max_length=100,
-            required=True,
-        )
-        self.map_input = discord.ui.TextInput(
-            label="Map / server",
-            placeholder="For example: The Island - EU 123",
-            max_length=100,
-            required=True,
-        )
+
+        fields = {
+            "support": (
+                "Your name / tribe", "Enter your Discord name, tribe or in-game name.",
+                "Server / map", "Example: The Island • EU 123",
+                "How can we help?", "Give us a clear description of the issue or request.",
+            ),
+            "player-report": (
+                "Reported player / tribe", "Enter the player or tribe you are reporting.",
+                "Server / map", "Example: The Island • EU 123",
+                "Incident & evidence", "Include what happened, when it happened, and any evidence.",
+            ),
+            "staff-report": (
+                "Staff member", "Who is the report regarding?",
+                "Server / area", "Example: Discord • EU server • Ticket",
+                "Report details", "Explain what happened and include any relevant evidence.",
+            ),
+            "donation": (
+                "Name / order reference", "Enter your Discord name or order/reference number.",
+                "Package / purchase", "Example: Bronze • Car Package • Donation",
+                "What do you need help with?", "Explain the payment, purchase or delivery issue.",
+            ),
+            "technical": (
+                "Name / tribe", "Enter your Discord name, tribe or in-game name.",
+                "Server / platform", "Example: The Island • PC • EU 123",
+                "Technical issue", "Describe the problem, what you were doing, and any error message.",
+            ),
+        }
+
+        first_label, first_placeholder, second_label, second_placeholder, third_label, third_placeholder = fields[ticket_type]
+
+        self.name_input = discord.ui.TextInput(label=first_label, placeholder=first_placeholder, max_length=100, required=True)
+        self.map_input = discord.ui.TextInput(label=second_label, placeholder=second_placeholder, max_length=100, required=True)
         self.reason_input = discord.ui.TextInput(
-            label="Reason / details",
-            placeholder="Explain what you need help with or what happened.",
+            label=third_label,
+            placeholder=third_placeholder,
             style=discord.TextStyle.paragraph,
             max_length=1000,
             required=True,
@@ -199,7 +220,7 @@ class TicketDetailsModal(discord.ui.Modal):
         }
         if not all(details.values()):
             await interaction.response.send_message(
-                "Please complete your name, map/server, and reason before opening a ticket.",
+                "Please complete all required fields before opening your ticket.",
                 ephemeral=True,
             )
             return
