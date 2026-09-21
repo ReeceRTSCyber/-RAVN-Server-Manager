@@ -118,6 +118,102 @@ class GiveawayView(discord.ui.View):
         except discord.HTTPException:
             logger.warning("Could not finish giveaway message %s", self.message.id)
 
+class DinoGuessModal(discord.ui.Modal, title="Guess the Dino"):
+    guess = discord.ui.TextInput(label="Your dinosaur guess", placeholder="e.g. Rex", max_length=80)
+
+    def __init__(self, game: "DinoGuessView") -> None:
+        super().__init__()
+        self.game = game
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        if self.game.winner_id is not None:
+            await interaction.response.send_message("🏆 This event has already been won.", ephemeral=True)
+            return
+        if self.guess.value.strip().casefold() != self.game.answer.casefold():
+            await interaction.response.send_message("❌ Wrong dinosaur! Try again.", ephemeral=True)
+            return
+        self.game.winner_id = interaction.user.id
+        self.game.stop()
+        if self.game.message:
+            embed = ravn_embed(
+                "🦖 DINO GUESS EVENT — WON",
+                f"🏆 **Winner:** {interaction.user.mention}\n🦖 **Dinosaur:** **{self.game.answer}**\n🎁 **Prize:** **{self.game.prize}**",
+                colour=SUCCESS,
+                footer="RAVN Server Manager • Community Events",
+            )
+            await self.game.message.edit(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=self.game)
+        await interaction.response.send_message(
+            f"🎉 Correct! You won **{self.game.prize}**. A staff member will contact you with your prize.",
+            ephemeral=True,
+        )
+
+
+class DinoGuessView(discord.ui.View):
+    def __init__(self, answer: str, prize: str) -> None:
+        super().__init__(timeout=None)
+        self.answer = answer.strip()
+        self.prize = prize
+        self.winner_id: int | None = None
+        self.message: discord.Message | None = None
+
+    @discord.ui.button(label="GUESS THE DINO", emoji="🦖", style=discord.ButtonStyle.primary)
+    async def guess_dino(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if self.winner_id is not None:
+            await interaction.response.send_message("🏆 This event has already been won.", ephemeral=True)
+            return
+        await interaction.response.send_modal(DinoGuessModal(self))
+
+
+class VaultCodeModal(discord.ui.Modal, title="Crack the Vault"):
+    code = discord.ui.TextInput(
+        label="Enter the vault code",
+        placeholder="Enter the code you think opens the vault",
+        max_length=100,
+    )
+
+    def __init__(self, game: "VaultCodeView") -> None:
+        super().__init__()
+        self.game = game
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        if self.game.winner_id is not None:
+            await interaction.response.send_message("🔒 The vault has already been opened.", ephemeral=True)
+            return
+        if self.code.value.strip().casefold() != self.game.code.casefold():
+            await interaction.response.send_message("❌ Incorrect code. The vault remains locked!", ephemeral=True)
+            return
+        self.game.winner_id = interaction.user.id
+        self.game.stop()
+        if self.game.message:
+            embed = ravn_embed(
+                "🔓 VAULT CODE EVENT — CRACKED",
+                f"🏆 **Winner:** {interaction.user.mention}\n🔐 **Vault code:** **{self.game.code}**\n🎁 **Prize:** **{self.game.prize}**",
+                colour=SUCCESS,
+                footer="RAVN Server Manager • Community Events",
+            )
+            await self.game.message.edit(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=self.game)
+        await interaction.response.send_message(
+            f"🎉 Vault cracked! You won **{self.game.prize}**. A staff member will contact you with your prize.",
+            ephemeral=True,
+        )
+
+
+class VaultCodeView(discord.ui.View):
+    def __init__(self, code: str, prize: str) -> None:
+        super().__init__(timeout=None)
+        self.code = code.strip()
+        self.prize = prize
+        self.winner_id: int | None = None
+        self.message: discord.Message | None = None
+
+    @discord.ui.button(label="CRACK THE VAULT", emoji="🔐", style=discord.ButtonStyle.success)
+    async def crack_vault(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if self.winner_id is not None:
+            await interaction.response.send_message("🔒 The vault has already been opened.", ephemeral=True)
+            return
+        await interaction.response.send_modal(VaultCodeModal(self))
+
+
 ACTIVE_GIVEAWAYS: list[GiveawayView] = []
 
 
@@ -148,7 +244,7 @@ def register(bot: discord.Client) -> None:
             footer="RAVN Server Manager • Command Centre",
         )
         embed.add_field(name="🎫 Support", value="/ticket — private support panel", inline=True)
-        embed.add_field(name="🎉 Community", value="/giveaway • /event • /recruit", inline=True)
+        embed.add_field(name="🎉 Community", value="/giveaway • /event • /dino-event • /vault-event • /recruit", inline=True)
         embed.add_field(name="📢 Server", value="/announce • /patchnotes", inline=True)
         embed.add_field(name="🛡️ Moderation", value="/warn • /timeout • /kick • /ban • /unban • /clear", inline=False)
         embed.add_field(name="⚖️ Punishments", value="/punish — create a formal tribe punishment record with evidence", inline=False)
@@ -356,6 +452,48 @@ def register(bot: discord.Client) -> None:
             view=EventRSVPView(name),
         )
         await interaction.response.send_message(f"Event posted in {channel.mention}.", ephemeral=True)
+
+    @bot.tree.command(name="dino-event", description="Start a first-correct dinosaur guessing event.")
+    @discord.app_commands.default_permissions(manage_guild=True)
+    @discord.app_commands.checks.has_permissions(manage_guild=True)
+    async def dino_event(interaction: discord.Interaction, answer: str, prize: str = "Store Gift Card") -> None:
+        if not interaction.guild:
+            return
+        channel = _find_channel(interaction.guild, "🎪・server-events") or interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message("The event channel is not available.", ephemeral=True)
+            return
+        view = DinoGuessView(answer, prize)
+        embed = ravn_embed(
+            "🦖 RAVN DINO GUESS",
+            f"🧩 **A mystery dinosaur is hidden!**\n\nBe the first person to guess it correctly and win:\n🎁 **{prize}**\n\nPress **🦖 GUESS THE DINO** to submit your answer.\n\n⚠️ One correct answer wins the event.",
+            colour=RAVN_PURPLE,
+            footer="RAVN Server Manager • Community Events",
+        )
+        message = await channel.send(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=view)
+        view.message = message
+        await interaction.response.send_message(f"🦖 Dino guess event posted in {channel.mention}.", ephemeral=True)
+
+    @bot.tree.command(name="vault-event", description="Start a first-correct vault code event.")
+    @discord.app_commands.default_permissions(manage_guild=True)
+    @discord.app_commands.checks.has_permissions(manage_guild=True)
+    async def vault_event(interaction: discord.Interaction, code: str, prize: str = "Store Gift Card") -> None:
+        if not interaction.guild:
+            return
+        channel = _find_channel(interaction.guild, "🎪・server-events") or interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message("The event channel is not available.", ephemeral=True)
+            return
+        view = VaultCodeView(code, prize)
+        embed = ravn_embed(
+            "🔐 RAVN VAULT CODE",
+            f"🏦 **The vault is locked!**\n\nBe the first person to crack the code and win:\n🎁 **{prize}**\n\nPress **🔐 CRACK THE VAULT** to submit a code.\n\n⚠️ One correct code wins the event.",
+            colour=RAVN_PURPLE,
+            footer="RAVN Server Manager • Community Events",
+        )
+        message = await channel.send(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=view)
+        view.message = message
+        await interaction.response.send_message(f"🔐 Vault code event posted in {channel.mention}.", ephemeral=True)
 
     @bot.tree.command(name="announce", description="Publish a staff announcement.")
     @discord.app_commands.default_permissions(manage_guild=True)
