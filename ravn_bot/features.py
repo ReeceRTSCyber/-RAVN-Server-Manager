@@ -185,7 +185,8 @@ def register(bot: discord.Client) -> None:
         async def announcements(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
             if not await self._staff_only(interaction): return
             channel = _find_channel(interaction.guild, "📢・announcements") if interaction.guild else None
-            await interaction.response.send_message(f"📢 Announcements: {channel.mention if channel else "not configured"}", ephemeral=True)
+            destination = channel.mention if channel else "not configured"
+            await interaction.response.send_message(f"📢 Announcements: {destination}", ephemeral=True)
 
         @discord.ui.button(label="Giveaways", emoji="🎉", style=discord.ButtonStyle.secondary, row=1)
         async def giveaways(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
