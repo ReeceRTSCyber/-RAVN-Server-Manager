@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import discord
 
 from .config import MANAGEMENT_ROLE_NAMES, STAFF_ROLE_NAMES
-from .embeds import ARK_BLUE, DANGER, SUCCESS, brand_embed, bot_avatar_url, ravn_embed, ticket_info_embed
+from .embeds import ARK_BLUE, DANGER, RAVN_PURPLE, SUCCESS, brand_embed, bot_avatar_url, ravn_embed, ticket_info_embed
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ async def create_ticket(
     label, description = TICKET_TYPES[ticket_type]
     safe_name = re.sub(r"[^a-z0-9-]+", "-", interaction.user.display_name.lower()).strip("-")[:35]
     channel = await category.create_text_channel(
-        f"ticket-{ticket_type}-{safe_name or interaction.user.id}",
+        f"{'report' if ticket_type == 'player-report' else ticket_type}-{'staff' if ticket_type == 'staff-report' else safe_name or interaction.user.id}",
         overwrites=overwrites,
         topic=(
             f"{marker};state:open;claimed_by:unclaimed;"
@@ -168,7 +168,7 @@ async def create_ticket(
     embed = ravn_embed(
         f"{label} ticket",
         f"{description}\n\nA member of the support team will be with you shortly. Keep relevant evidence and details in this channel.",
-        colour=ARK_BLUE,
+        colour=RAVN_PURPLE if ticket_type in {"support", "donation", "technical"} else ARK_BLUE,
     )
     embed.add_field(name="Opened by", value=interaction.user.mention, inline=True)
     embed.add_field(name="Name / tribe / player", value=details["name"], inline=True)
