@@ -24,7 +24,6 @@ from .case_system import create_case
 
 logger = logging.getLogger(__name__)
 
-ACTIVE_GIVEAWAYS: list[GiveawayView] = []
 
 PUNISHMENT_ROLE_NAMES = {
     "🔧 Head Admin",
@@ -118,6 +117,8 @@ class GiveawayView(discord.ui.View):
             )
         except discord.HTTPException:
             logger.warning("Could not finish giveaway message %s", self.message.id)
+
+ACTIVE_GIVEAWAYS: list[GiveawayView] = []
 
 
 class EventRSVPView(discord.ui.View):
