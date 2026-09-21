@@ -50,28 +50,6 @@ class RavnBot(commands.Bot):
             len(self.guilds),
         )
 
-    async def on_interaction(self, interaction: discord.Interaction) -> None:
-        if interaction.type == discord.InteractionType.component:
-            custom_id = interaction.data.get("custom_id") if interaction.data else None
-            logger.info(
-                "INTERACTION RECEIVED | component | custom_id=%s | user=%s | guild=%s",
-                custom_id,
-                interaction.user,
-                interaction.guild_id,
-            )
-        elif interaction.type == discord.InteractionType.modal_submit:
-            custom_id = interaction.data.get("custom_id") if interaction.data else None
-            logger.info(
-                "INTERACTION RECEIVED | modal | custom_id=%s | user=%s | guild=%s",
-                custom_id,
-                interaction.user,
-                interaction.guild_id,
-            )
-
-        # Keep discord.py's built-in interaction dispatcher running.
-        # The diagnostic logging above must not replace command/component handling.
-        await super().on_interaction(interaction)
-
     async def on_member_join(self, member: discord.Member) -> None:
         channel = discord.utils.get(member.guild.text_channels, name="👋・welcome")
         if channel:
