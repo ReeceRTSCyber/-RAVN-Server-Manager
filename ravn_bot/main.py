@@ -69,7 +69,7 @@ class RavnBot(commands.Bot):
             )
 
     async def on_member_join(self, member: discord.Member) -> None:
-        channel = discord.utils.get(member.guild.text_channels, name="💬・general")
+        channel = discord.utils.get(member.guild.text_channels, name="👋・welcome")
         if channel:
             await channel.send(embed=brand_embed(welcome_embed(member), bot_avatar_url(self)))
 
