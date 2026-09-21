@@ -43,6 +43,7 @@ ROLE_GROUPS: dict[str, list[str]] = {
         "🔻 Event Crate Ping",
         "🪨 Golem Ping",
         "🚀 Events Ping",
+        "🎉 Discord Event Ping",
     ],
     # Keep the original notification roles available for existing members and
     # automations, even though the current self-assign panel uses PING ROLES.
@@ -68,6 +69,7 @@ PING_ROLE_NAMES = [
     "🔻 Event Crate Ping",
     "🪨 Golem Ping",
     "🚀 Events Ping",
+    "🎉 Discord Event Ping",
 ]
 NOTIFICATION_ROLE_NAMES = PING_ROLE_NAMES
 
