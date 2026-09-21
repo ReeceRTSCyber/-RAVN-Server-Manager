@@ -13,6 +13,8 @@ DINO_EVENT_ANSWERS = [
     "Stegosaurus", "Triceratops", "Baryonyx", "Mosasaurus", "Plesiosaur",
 ]
 EVENT_SCHEDULER_STARTED = False
+DINO_GIFT_CARD_VALUES = ["$1", "$2", "$3", "$4", "$5"]
+VAULT_GIFT_CARD_VALUES = ["$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15"]
 
 import discord
 
@@ -53,6 +55,15 @@ def _can_issue_punishment(interaction: discord.Interaction) -> bool:
 
 def _find_channel(guild: discord.Guild, name: str) -> discord.TextChannel | None:
     return discord.utils.get(guild.text_channels, name=name)
+
+
+def _gift_code_for(event_type: str) -> str | None:
+    # Codes are supplied securely through Railway environment variables.
+    # Use comma-separated codes in RAVN_DINO_GIFT_CODES / RAVN_VAULT_GIFT_CODES.
+    import os
+    variable = "RAVN_DINO_GIFT_CODES" if event_type == "dino" else "RAVN_VAULT_GIFT_CODES"
+    codes = [code.strip() for code in os.getenv(variable, "").split(",") if code.strip()]
+    return random.choice(codes) if codes else None
 
 
 def _scramble_dino(name: str) -> str:
@@ -156,6 +167,13 @@ class DinoGuessModal(discord.ui.Modal, title="Guess the Dino"):
             return
         self.game.winner_id = interaction.user.id
         self.game.stop()
+        gift_message = ""
+        if self.game.gift_card_code:
+            try:
+                await interaction.user.send(f"🎁 RAVN EVENT WINNER\\n\\nYou won **{self.game.prize}** from the Dino Guess event!\\n\\n🎟️ **Gift Card Code:** `{self.game.gift_card_code}`\\n\\nKeep this code private.")
+                gift_message = "\\n📩 Your gift card code has been sent to your DMs."
+            except discord.Forbidden:
+                gift_message = "\\n⚠️ I could not DM you. Please enable DMs from server members."
         if self.game.message:
             embed = ravn_embed(
                 "🦖 DINO GUESS EVENT — WON",
@@ -165,16 +183,17 @@ class DinoGuessModal(discord.ui.Modal, title="Guess the Dino"):
             )
             await self.game.message.edit(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=self.game)
         await interaction.response.send_message(
-            f"🎉 Correct! You won **{self.game.prize}**. A staff member will contact you with your prize.",
+            f"🎉 Correct! You won **{self.game.prize}**.{gift_message}",
             ephemeral=True,
         )
 
 
 class DinoGuessView(discord.ui.View):
-    def __init__(self, answer: str, prize: str) -> None:
+    def __init__(self, answer: str, prize: str, gift_card_code: str | None = None) -> None:
         super().__init__(timeout=None)
         self.answer = answer.strip()
         self.prize = prize
+        self.gift_card_code = gift_card_code
         self.winner_id: int | None = None
         self.message: discord.Message | None = None
 
@@ -206,6 +225,13 @@ class VaultCodeModal(discord.ui.Modal, title="Crack the Vault"):
             return
         self.game.winner_id = interaction.user.id
         self.game.stop()
+        gift_message = ""
+        if self.game.gift_card_code:
+            try:
+                await interaction.user.send(f"🎁 RAVN EVENT WINNER\\n\\nYou won **{self.game.prize}** from the Vault event!\\n\\n🎟️ **Gift Card Code:** `{self.game.gift_card_code}`\\n\\nKeep this code private.")
+                gift_message = "\\n📩 Your gift card code has been sent to your DMs."
+            except discord.Forbidden:
+                gift_message = "\\n⚠️ I could not DM you. Please enable DMs from server members."
         if self.game.message:
             embed = ravn_embed(
                 "🔓 VAULT CODE EVENT — CRACKED",
@@ -215,16 +241,17 @@ class VaultCodeModal(discord.ui.Modal, title="Crack the Vault"):
             )
             await self.game.message.edit(embed=brand_embed(embed, bot_avatar_url(interaction.client)), view=self.game)
         await interaction.response.send_message(
-            f"🎉 Vault cracked! You won **{self.game.prize}**. A staff member will contact you with your prize.",
+            f"🎉 Vault cracked! You won **{self.game.prize}**.{gift_message}",
             ephemeral=True,
         )
 
 
 class VaultCodeView(discord.ui.View):
-    def __init__(self, code: str, prize: str) -> None:
+    def __init__(self, code: str, prize: str, gift_card_code: str | None = None) -> None:
         super().__init__(timeout=None)
         self.code = code.strip()
         self.prize = prize
+        self.gift_card_code = gift_card_code
         self.winner_id: int | None = None
         self.message: discord.Message | None = None
 
@@ -504,7 +531,8 @@ def register(bot: discord.Client) -> None:
 
         if event_type == "vault":
             code = random.randint(1, 500)
-            view = VaultCodeView(str(code), "Store Gift Card")
+            gift_value = random.choice(VAULT_GIFT_CARD_VALUES)
+            view = VaultCodeView(str(code), f"{gift_value} Gift Card", _gift_code_for("vault"))
             embed = ravn_embed(
                 "🔐 RAVN VAULT CHALLENGE",
                 "🏦 **THE VAULT IS LOCKED**\n\nA random vault code between **1 and 500** has been generated.\n\nBe the **first** person to enter the correct code and win:\n🎁 **Store Gift Card**\n\nPress **🔐 CRACK THE VAULT** to submit your guess.\n\n⏰ A new challenge runs every **4 hours**.\n⚠️ One correct answer wins.",
@@ -514,16 +542,17 @@ def register(bot: discord.Client) -> None:
         else:
             answer = random.choice(DINO_EVENT_ANSWERS)
             scrambled = _scramble_dino(answer)
-            view = DinoGuessView(answer, "Store Gift Card")
+            gift_value = random.choice(DINO_GIFT_CARD_VALUES)
+            view = DinoGuessView(answer, f"{gift_value} Gift Card", _gift_code_for("dino"))
             embed = ravn_embed(
                 "🦖 RAVN DINO GUESS",
-                f"🧩 **UNSCRAMBLE THE DINOSAUR**\\n\\n**{scrambled.upper()}**\\n\\nThe dinosaur's letters have been mixed up. Can you work out the name?\\n\\nBe the **first** person to guess it correctly and win:\\n🎁 **Store Gift Card**\\n\\nPress **🦖 GUESS THE DINO** to submit your guess.\\n\\n⏰ A new challenge runs every **4 hours**.\\n⚠️ One correct answer wins.",
+                f"🧩 **UNSCRAMBLE THE DINOSAUR**\\n\\n**{scrambled.upper()}**\\n\\nThe dinosaur's letters have been mixed up. Can you work out the name?\\n\\nBe the **first** person to guess it correctly and win:\\n🎁 **{gift_value} Gift Card**\\n\\nPress **🦖 GUESS THE DINO** to submit your guess.\\n\\n⏰ A new challenge runs every **4 hours**.\\n⚠️ One correct answer wins.",
                 colour=RAVN_PURPLE,
                 footer="RAVN Server Manager • Automatic 4-Hour Events",
             )
 
         message = await channel.send(
-            embed=brand_embed(embed, bot_avatar_url(guild._state._client)),
+            embed=brand_embed(embed, bot_avatar_url(bot)),
             view=view,
         )
         view.message = message
