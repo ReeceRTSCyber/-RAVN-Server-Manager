@@ -68,6 +68,10 @@ class RavnBot(commands.Bot):
                 interaction.guild_id,
             )
 
+        # Keep discord.py's built-in interaction dispatcher running.
+        # The diagnostic logging above must not replace command/component handling.
+        await super().on_interaction(interaction)
+
     async def on_member_join(self, member: discord.Member) -> None:
         channel = discord.utils.get(member.guild.text_channels, name="👋・welcome")
         if channel:
