@@ -7,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from .clear_server import register as register_clear_server
+from .advanced_features import register as register_advanced_features
 from .case_system import register as register_case_system
 from .config import load_settings
 from .embeds import brand_embed, bot_avatar_url, welcome_embed
@@ -109,6 +110,7 @@ def create_bot() -> tuple[RavnBot, str]:
     register_verify(bot)
     register_clear_server(bot)
     register_case_system(bot)
+    register_advanced_features(bot)
     return bot, settings.token
 
 
