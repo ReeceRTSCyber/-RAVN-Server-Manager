@@ -8,7 +8,7 @@ from .embeds import RAVN_PURPLE, brand_embed, bot_avatar_url, ravn_embed
 
 logger = logging.getLogger(__name__)
 
-SURVIVOR_ROLE_NAME = "🦖 Survivor"
+SURVIVOR_ROLE_NAME = "Survivor"
 VERIFY_LOG_CHANNEL_NAMES = {"📊・staff-logs", "📜・mod-logs"}
 
 def _find_log_channel(guild: discord.Guild) -> discord.TextChannel | None:
@@ -55,8 +55,8 @@ class VerifyView(discord.ui.View):
         await interaction.response.send_message(f"✅ Verification complete! You have been given {role.mention}. Welcome to RAVN!", ephemeral=True)
 
 def verification_embed() -> discord.Embed:
-    embed = ravn_embed("🛡️ RAVN VERIFICATION", "Welcome to the RAVN ARK Survival Ascended community!\n\nBefore accessing the community, click **VERIFY** below to confirm that you are a member of the server.\n\nOnce verified, you will receive the **🦖 Survivor** role.", colour=RAVN_PURPLE, footer="RAVN Server Manager • Member Verification")
-    embed.add_field(name="✅ What happens when I verify?", value="You will automatically receive the 🦖 Survivor role.", inline=False)
+    embed = ravn_embed("🛡️ RAVN VERIFICATION", "Welcome to the RAVN ARK Survival Ascended community!\n\nBefore accessing the community, click **VERIFY** below to confirm that you are a member of the server.\n\nOnce verified, you will receive the **Survivor** role.", colour=RAVN_PURPLE, footer="RAVN Server Manager • Member Verification")
+    embed.add_field(name="✅ What happens when I verify?", value="You will automatically receive the Survivor role.", inline=False)
     embed.add_field(name="⚠️ Need help?", value="If verification does not work, contact a member of staff.", inline=False)
     return embed
 
