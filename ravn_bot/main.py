@@ -44,6 +44,10 @@ class RavnBot(commands.Bot):
             logger.info("Synced %s global commands", len(synced))
 
     async def on_ready(self) -> None:
+        await self.change_presence(
+            status=discord.Status.online,
+            activity=discord.Game(name="🦖 RAVN | ARK PvP"),
+        )
         logger.info(
             "RAVN Server Manager online as %s in %s guild(s)",
             self.user,
