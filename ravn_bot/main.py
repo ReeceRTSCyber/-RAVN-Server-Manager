@@ -15,6 +15,8 @@ from .role_selection import register as register_role_selection
 from .setup_server import setup_command
 from .tickets import register as register_tickets
 
+logger = logging.getLogger(__name__)
+
 
 class RavnBot(commands.Bot):
     def __init__(self, settings) -> None:
@@ -32,21 +34,39 @@ class RavnBot(commands.Bot):
             guild = discord.Object(id=self.settings.guild_id)
             self.tree.copy_global_to(guild=guild)
             synced = await self.tree.sync(guild=guild)
-            logging.getLogger(__name__).info(
+            logger.info(
                 "Synced %s commands to configured guild %s",
                 len(synced),
                 self.settings.guild_id,
             )
         else:
             synced = await self.tree.sync()
-            logging.getLogger(__name__).info("Synced %s global commands", len(synced))
+            logger.info("Synced %s global commands", len(synced))
 
     async def on_ready(self) -> None:
-        logging.getLogger(__name__).info(
+        logger.info(
             "RAVN Server Manager online as %s in %s guild(s)",
             self.user,
             len(self.guilds),
         )
+
+    async def on_interaction(self, interaction: discord.Interaction) -> None:
+        if interaction.type == discord.InteractionType.component:
+            custom_id = interaction.data.get("custom_id") if interaction.data else None
+            logger.info(
+                "INTERACTION RECEIVED | component | custom_id=%s | user=%s | guild=%s",
+                custom_id,
+                interaction.user,
+                interaction.guild_id,
+            )
+        elif interaction.type == discord.InteractionType.modal_submit:
+            custom_id = interaction.data.get("custom_id") if interaction.data else None
+            logger.info(
+                "INTERACTION RECEIVED | modal | custom_id=%s | user=%s | guild=%s",
+                custom_id,
+                interaction.user,
+                interaction.guild_id,
+            )
 
     async def on_member_join(self, member: discord.Member) -> None:
         channel = discord.utils.get(member.guild.text_channels, name="💬・general")
@@ -63,7 +83,7 @@ class RavnBot(commands.Bot):
         elif isinstance(error, app_commands.CommandOnCooldown):
             message = "That command is temporarily rate-limited. Try again shortly."
         else:
-            logging.getLogger(__name__).exception("Application command failed", exc_info=error)
+            logger.exception("Application command failed", exc_info=error)
             message = "Something went wrong while running that command."
 
         if interaction.response.is_done():
