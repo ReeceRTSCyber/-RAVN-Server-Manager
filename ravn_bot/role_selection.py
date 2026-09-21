@@ -95,11 +95,11 @@ class PingRoleView(discord.ui.View):
         roles = [
             ("Small Announcements", PING_ROLE_NAMES[0], "📣"),
             ("Giveaway Ping", PING_ROLE_NAMES[1], "🎉"),
-            ("Rollback Ping", PING_ROLE_NAMES[2], "🔄"),
+            ("Rollback Ping", PING_ROLE_NAMES[2], discord.PartialEmoji(name="rollback", id=1551462057965264937)),
             ("Restart Ping", PING_ROLE_NAMES[3], "♻️"),
-            ("Event Dino Ping", PING_ROLE_NAMES[4], "🦖"),
-            ("Event Crate Ping", PING_ROLE_NAMES[5], "🔻"),
-            ("Golem Ping", PING_ROLE_NAMES[6], "🪨"),
+            ("Event Dino Ping", PING_ROLE_NAMES[4], discord.PartialEmoji(name="trex", id=1551458256503709729)),
+            ("Event Crate Ping", PING_ROLE_NAMES[5], discord.PartialEmoji(name="event_crate", id=1551459356074053785)),
+            ("Golem Ping", PING_ROLE_NAMES[6], discord.PartialEmoji(name="golem", id=1551461825806209086)),
             ("Events Ping", PING_ROLE_NAMES[7], "🚀"),
             ("Discord Event Ping", PING_ROLE_NAMES[8], "🎉"),
         ]
@@ -120,9 +120,9 @@ class MiscRoleView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
         roles = [
-            ("PS5", PLATFORM_ROLE_NAMES[0], "🎮"),
-            ("PC", PLATFORM_ROLE_NAMES[1], "🖥️"),
-            ("Xbox", PLATFORM_ROLE_NAMES[2], "🟢"),
+            ("PS5", PLATFORM_ROLE_NAMES[0], discord.PartialEmoji(name="PS4", id=1551458756078997588)),
+            ("PC", PLATFORM_ROLE_NAMES[1], discord.PartialEmoji(name="Pc", id=1551458898576285739)),
+            ("Xbox", PLATFORM_ROLE_NAMES[2], discord.PartialEmoji(name="Xbox", id=1551459021045633066)),
             ("Europe", REGION_ROLE_NAMES[0], "🇩🇪"),
             ("NA", REGION_ROLE_NAMES[1], "🌎"),
             ("UK", REGION_ROLE_NAMES[2], "🇬🇧"),
