@@ -102,13 +102,11 @@ CATEGORY_CHANNELS: dict[str, list[str]] = {
         "💰・trade-chat",
         "🏷️・trade-vouches",
     ],
-    "🎫 SUPPORT": [
-        "🎫・create-ticket",
-        "🚨・player-report",
-        "🛡️・staff-report",
-        "💰・donation-support",
-        "🔧・technical-support",
-    ],
+    "🎫・SUPPORT TICKETS": ["🎫・create-ticket"],
+    "🚨・PLAYER REPORT TICKET": [],
+    "🛡️・STAFF REPORT TICKET": [],
+    "💰・DONATION TICKET": [],
+    "🔧・TECHNICAL SUPPORT TICKET": [],
     "🔒 STAFF": [
         "💬・staff-chat",
         "📋・staff-tasks",
@@ -153,6 +151,7 @@ REMOVED_CATEGORIES = {
     "👥 TRIBES VOICE",
 }
 REMOVED_CHANNELS = {
+    "🎫 SUPPORT": set(),
     "💰 TRADING": {
         "🦖・dino-trading",
         "🧬・mutations",
