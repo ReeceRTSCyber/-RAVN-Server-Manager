@@ -350,82 +350,53 @@ async def _seed_embed(
         return False
 
 
+async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[str, discord.Role]:
+    """Create only the self-assignable ping roles used by the role panel.
+
+    This intentionally does not create/reorder any other roles and does not
+    create, edit, or delete categories/channels.
+    """
+    from .config import PING_ROLE_NAMES
+
+    roles: dict[str, discord.Role] = {}
+    mentionable = set(PING_ROLE_NAMES)
+
+    for name in PING_ROLE_NAMES:
+        existing = _role(guild, name)
+        if existing:
+            roles[name] = existing
+            continue
+
+        created = await guild.create_role(
+            name=name,
+            permissions=discord.Permissions.none(),
+            mentionable=name in mentionable,
+            reason="RAVN Server Manager ping roles",
+        )
+        roles[name] = created
+        result.roles_created += 1
+
+    return roles
+
+
 async def provision_guild(guild: discord.Guild) -> SetupResult:
+    """Set up only the RAVN ping roles and refresh the existing ping panel.
+
+    /setup-server deliberately no longer provisions the Discord layout. The
+    server's categories/channels and all non-ping roles are left untouched.
+    """
     result = SetupResult()
-    await _remove_legacy_content(guild, result)
-    roles = await ensure_roles(guild, result)
-    categories: dict[str, discord.CategoryChannel] = {}
-
-    for name, channel_names in CATEGORY_CHANNELS.items():
-        category = await _get_or_create_category(
-            guild,
-            name,
-            _overwrites(
-                guild,
-                roles,
-                private=name in PRIVATE_CATEGORIES,
-                info=name in INFO_CHANNELS,
-                tribe=name == "🏹 TRIBE RECRUITMENT",
-            ),
-            result,
-        )
-        categories[name] = category
-        for channel_name in channel_names:
-            channel = await _get_or_create_text_channel(category, channel_name, result)
-            if name in INFO_CHANNELS:
-                try:
-                    await channel.edit(
-                        overwrites=_overwrites(guild, roles, info=True),
-                        reason="RAVN Server Manager information channel permissions",
-                    )
-                except discord.HTTPException:
-                    logger.warning("Could not update info channel %s", channel.name)
-
-    for name, channel_names in VOICE_CATEGORIES.items():
-        category = await _get_or_create_category(
-            guild,
-            name,
-            _overwrites(guild, roles, private=False, tribe="TRIBE" in name),
-            result,
-        )
-        for channel_name in channel_names:
-            await _get_or_create_voice_channel(category, channel_name, result)
-
-    embeds_by_channel: dict[str, tuple[discord.Embed, discord.ui.View | None]] = {
-        "📜・server-rules": rules_embed(),
-        "📌・server-info": server_info_embed(guild),
-        "📢・tribe-recruitment": recruitment_embed(),
-        "💰・trade-chat": trading_rules_embed(),
-        "🎫・create-ticket": (ticket_info_embed(), TicketPanelView()),
-        "🚨・player-report": reports_embed(),
-        "📢・announcements": announcements_embed(
-            "Welcome to RAVN",
-            "The server has been provisioned by RAVN Server Manager. Read the rules and choose your roles to get started.",
-        ),
-        "📅・wipe-info": wipe_info_embed(),
-    }
-    bot_image_url = str(guild.me.display_avatar.url) if guild.me else None
-    setup_image_url = "attachment://ravn-logo.png" if LOGO_ASSET_PATH.is_file() else bot_image_url
-    setup_image_path = LOGO_ASSET_PATH if LOGO_ASSET_PATH.is_file() else None
-    for channel_name, panel in embeds_by_channel.items():
-        embed, view = panel if isinstance(panel, tuple) else (panel, None)
-        for category in categories.values():
-            channel = discord.utils.find(lambda item: item.name == channel_name, category.text_channels)
-            if channel and await _seed_embed(
-                channel,
-                embed,
-                view,
-                image_url=setup_image_url,
-                image_path=setup_image_path,
-            ):
-                result.messages_seeded += 1
-                break
+    await ensure_ping_roles(guild, result)
 
     role_channel = discord.utils.find(
         lambda item: item.name == "🎭・role-selection",
         guild.text_channels,
     )
     if role_channel:
+        bot_image_url = str(guild.me.display_avatar.url) if guild.me else None
+        setup_image_url = "attachment://ravn-logo.png" if LOGO_ASSET_PATH.is_file() else bot_image_url
+        setup_image_path = LOGO_ASSET_PATH if LOGO_ASSET_PATH.is_file() else None
+
         if await _seed_embed(
             role_channel,
             ping_roles_embed(),
@@ -435,15 +406,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
             image_path=setup_image_path,
         ):
             result.messages_seeded += 1
-        if await _seed_embed(
-            role_channel,
-            misc_roles_embed(),
-            MiscRoleView(),
-            titles={"MISC ROLES"},
-            image_url=setup_image_url,
-            image_path=setup_image_path,
-        ):
-            result.messages_seeded += 1
+
     return result
 
 
