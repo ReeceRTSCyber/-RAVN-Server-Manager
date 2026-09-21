@@ -558,7 +558,7 @@ def register(bot: discord.Client) -> None:
     ) -> None:
         if not interaction.guild:
             return
-        channel = _find_channel(interaction.guild, "🎪・server-events") or interaction.channel
+        channel = _find_channel(interaction.guild, "🎉・discord-events") or interaction.channel
         if not isinstance(channel, discord.TextChannel):
             return
         await channel.send(
@@ -576,7 +576,7 @@ def register(bot: discord.Client) -> None:
     async def dino_event(interaction: discord.Interaction, answer: str, prize: str = "Store Gift Card") -> None:
         if not interaction.guild:
             return
-        channel = _find_channel(interaction.guild, "🎪・server-events") or interaction.channel
+        channel = _find_channel(interaction.guild, "🎉・discord-events") or interaction.channel
         if not isinstance(channel, discord.TextChannel):
             await interaction.response.send_message("The event channel is not available.", ephemeral=True)
             return
@@ -592,7 +592,7 @@ def register(bot: discord.Client) -> None:
         await interaction.response.send_message(f"🦖 Dino guess event posted in {channel.mention}.", ephemeral=True)
 
     async def _post_scheduled_event(guild: discord.Guild, event_type: str) -> None:
-        channel = _find_channel(guild, "🎪・server-events")
+        channel = _find_channel(guild, "🎉・discord-events")
         if not channel:
             logger.warning("Scheduled event skipped for guild %s: 🎪・server-events not found", guild.id)
             return
@@ -663,7 +663,7 @@ def register(bot: discord.Client) -> None:
     async def vault_event(interaction: discord.Interaction, code: str, prize: str = "Store Gift Card") -> None:
         if not interaction.guild:
             return
-        channel = _find_channel(interaction.guild, "🎪・server-events") or interaction.channel
+        channel = _find_channel(interaction.guild, "🎉・discord-events") or interaction.channel
         if not isinstance(channel, discord.TextChannel):
             await interaction.response.send_message("The event channel is not available.", ephemeral=True)
             return
