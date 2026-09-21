@@ -17,12 +17,8 @@ class DeletionResult:
     failures: int = 0
 
 
-def _is_owner_or_administrator(interaction: discord.Interaction) -> bool:
-    if not interaction.guild:
-        return False
-    if interaction.guild.owner_id == interaction.user.id:
-        return True
-    return isinstance(interaction.user, discord.Member) and interaction.user.guild_permissions.administrator
+def _is_server_owner(interaction: discord.Interaction) -> bool:
+    return bool(interaction.guild and interaction.guild.owner_id == interaction.user.id)
 
 
 async def _delete_managed_channels(guild: discord.Guild) -> DeletionResult:
@@ -82,7 +78,7 @@ class ClearServerView(discord.ui.View):
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.requester_id:
             await interaction.response.send_message(
-                "Only the administrator who started this confirmation can use these buttons.",
+                "Only the server owner who started this confirmation can use these buttons.",
                 ephemeral=True,
             )
             return False
@@ -109,9 +105,9 @@ class ClearServerView(discord.ui.View):
         custom_id="ravn:clear-server:confirm",
     )
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        if not interaction.guild or not _is_owner_or_administrator(interaction):
+        if not interaction.guild or not _is_server_owner(interaction):
             await interaction.response.send_message(
-                "Only the server owner or an Administrator can confirm this action.",
+                "Only the server owner can confirm this action.",
                 ephemeral=True,
             )
             return
@@ -158,7 +154,7 @@ def register(bot: discord.Client) -> None:
         description="Delete all channels and categories the bot can manage after confirmation.",
     )
     @discord.app_commands.default_permissions(administrator=True)
-    @discord.app_commands.check(_is_owner_or_administrator)
+    @discord.app_commands.check(_is_server_owner)
     async def clear_server(interaction: discord.Interaction) -> None:
         if not interaction.guild:
             await interaction.response.send_message(
