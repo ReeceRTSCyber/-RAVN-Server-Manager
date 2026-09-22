@@ -48,7 +48,7 @@ LOGO_ASSET_PATH = (
 )
 LOGO_FILENAME = "ravn-logo.png"
 
-DEVELOPER_ROLE_NAME = "Developer"
+DEVELOPER_ROLE_NAME = "Mod Dev"
 DEVELOPER_ROLE_EMOJI_NAME = "dev"
 DEVELOPER_ROLE_ICON_EMOJI_ID = "1551809255496089671"
 
@@ -486,9 +486,9 @@ async def ensure_platform_role_icons(guild: discord.Guild) -> None:
 
 async def ensure_developer_role_name(guild: discord.Guild) -> None:
     """Rename the existing Developer role to include the server's :dev: emoji."""
-    role = _role(guild, DEVELOPER_ROLE_NAME)
+    role = _role(guild, DEVELOPER_ROLE_NAME) or _role(guild, "Developer") or _role(guild, "💻 Developer")
     if role is None:
-        logger.warning("Developer role not found in guild %s; leaving roles unchanged.", guild.id)
+        logger.warning("Mod Dev/Developer role not found in guild %s; leaving roles unchanged.", guild.id)
         return
 
     emoji = discord.utils.get(guild.emojis, name=DEVELOPER_ROLE_EMOJI_NAME)
@@ -514,7 +514,7 @@ async def ensure_developer_role_name(guild: discord.Guild) -> None:
 
 async def ensure_developer_role(guild: discord.Guild, result: SetupResult) -> discord.Role:
     """Create/update the Developer role with the requested Discord emoji as its role icon."""
-    existing = _role(guild, DEVELOPER_ROLE_NAME) or _role(guild, "💻 Developer")
+    existing = _role(guild, DEVELOPER_ROLE_NAME) or _role(guild, "Developer") or _role(guild, "💻 Developer")
     developer_permissions = discord.Permissions(
         manage_guild=True,
         manage_channels=True,
