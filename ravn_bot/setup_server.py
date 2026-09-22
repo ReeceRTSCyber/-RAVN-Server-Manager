@@ -47,8 +47,8 @@ LOGO_ASSET_PATH = (
 )
 LOGO_FILENAME = "ravn-logo.png"
 
-DEVELOPER_ROLE_NAME = "💻 Developer"
-DEVELOPER_ROLE_ICON_EMOJI_ID = "1551476412941078529"
+DEVELOPER_ROLE_NAME = "Developer"
+DEVELOPER_ROLE_ICON_EMOJI_ID = "1551809255496089671"
 
 PING_ROLE_ICONS = {
     "📣 Small Announcements": "📣",
@@ -444,7 +444,7 @@ async def ensure_platform_role_icons(guild: discord.Guild) -> None:
 
 async def ensure_developer_role(guild: discord.Guild, result: SetupResult) -> discord.Role:
     """Create/update the Developer role with the requested Discord emoji as its role icon."""
-    existing = _role(guild, DEVELOPER_ROLE_NAME)
+    existing = _role(guild, DEVELOPER_ROLE_NAME) or _role(guild, "💻 Developer")
     developer_permissions = discord.Permissions(
         manage_guild=True,
         manage_channels=True,
