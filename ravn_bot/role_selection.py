@@ -163,8 +163,9 @@ def _button_callback(
 
 
 class PingRoleView(discord.ui.View):
-    def __init__(self) -> None:
+    def __init__(self, emoji_overrides: dict[str, object] | None = None) -> None:
         super().__init__(timeout=None)
+        emoji_overrides = emoji_overrides or {}
 
         roles = [
             (
@@ -182,7 +183,7 @@ class PingRoleView(discord.ui.View):
             (
                 "Rollback Ping",
                 PING_ROLE_NAMES[2],
-                REACTION_ROLE_EMOJIS["Rollback Ping"],
+                emoji_overrides.get("Rollback Ping", REACTION_ROLE_EMOJIS["Rollback Ping"]),
                 REACTION_ROLE_IDS["Rollback Ping"],
             ),
             (
@@ -194,19 +195,19 @@ class PingRoleView(discord.ui.View):
             (
                 "Event Dino Ping",
                 PING_ROLE_NAMES[4],
-                REACTION_ROLE_EMOJIS["Event Dino Ping"],
+                emoji_overrides.get("Event Dino Ping", REACTION_ROLE_EMOJIS["Event Dino Ping"]),
                 REACTION_ROLE_IDS["Event Dino Ping"],
             ),
             (
                 "Event Crate Ping",
                 PING_ROLE_NAMES[5],
-                REACTION_ROLE_EMOJIS["Event Crate Ping"],
+                emoji_overrides.get("Event Crate Ping", REACTION_ROLE_EMOJIS["Event Crate Ping"]),
                 REACTION_ROLE_IDS["Event Crate Ping"],
             ),
             (
                 "Golem Ping",
                 PING_ROLE_NAMES[6],
-                REACTION_ROLE_EMOJIS["Golem Ping"],
+                emoji_overrides.get("Golem Ping", REACTION_ROLE_EMOJIS["Golem Ping"]),
                 REACTION_ROLE_IDS["Golem Ping"],
             ),
             (
@@ -243,26 +244,27 @@ class PingRoleView(discord.ui.View):
 
 
 class MiscRoleView(discord.ui.View):
-    def __init__(self) -> None:
+    def __init__(self, emoji_overrides: dict[str, object] | None = None) -> None:
         super().__init__(timeout=None)
+        emoji_overrides = emoji_overrides or {}
 
         roles = [
             (
                 "PS5",
                 PLATFORM_ROLE_NAMES[0],
-                REACTION_ROLE_EMOJIS["PS5"],
+                emoji_overrides.get("PS5", REACTION_ROLE_EMOJIS["PS5"]),
                 REACTION_ROLE_IDS["PS5"],
             ),
             (
                 "PC",
                 PLATFORM_ROLE_NAMES[1],
-                REACTION_ROLE_EMOJIS["PC"],
+                emoji_overrides.get("PC", REACTION_ROLE_EMOJIS["PC"]),
                 REACTION_ROLE_IDS["PC"],
             ),
             (
                 "Xbox",
                 PLATFORM_ROLE_NAMES[2],
-                REACTION_ROLE_EMOJIS["Xbox"],
+                emoji_overrides.get("Xbox", REACTION_ROLE_EMOJIS["Xbox"]),
                 REACTION_ROLE_IDS["Xbox"],
             ),
             (
