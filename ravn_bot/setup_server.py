@@ -451,11 +451,14 @@ async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[s
 
 
 async def ensure_reaction_role_names(guild: discord.Guild) -> None:
-    """Rename the seven reaction roles to use their real custom Discord emojis."""
+    """Set clean role names and use the server custom emojis as actual role icons."""
+    import aiohttp
+
     for item in REACTION_ROLE_DISPLAY.values():
         role = guild.get_role(item["role_id"])
         if role is None:
             continue
+
         emoji = discord.utils.get(guild.emojis, name=item["emoji_name"])
         if emoji is None:
             logger.warning(
@@ -465,15 +468,35 @@ async def ensure_reaction_role_names(guild: discord.Guild) -> None:
                 role.name,
             )
             continue
-        target_name = f"{emoji} {item['label']}"
-        if role.name != target_name:
-            try:
+
+        try:
+            # Discord does not render custom emoji markup inside role names.
+            # Role icons must be uploaded through the role icon field instead.
+            if role.name != item["label"]:
                 await role.edit(
-                    name=target_name,
+                    name=item["label"],
                     reason="RAVN Server Manager reaction-role naming",
                 )
-            except (discord.Forbidden, discord.HTTPException):
-                logger.exception("Could not rename reaction role %s", role.id)
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(str(emoji.url)) as response:
+                    if response.status == 200:
+                        icon_bytes = await response.read()
+                        await role.edit(
+                            icon=icon_bytes,
+                            reason="RAVN Server Manager reaction-role icon",
+                        )
+                    else:
+                        logger.warning(
+                            "Could not download :%s: for role %s: HTTP %s",
+                            emoji.name,
+                            role.id,
+                            response.status,
+                        )
+        except (discord.Forbidden, discord.HTTPException) as exc:
+            logger.warning("Could not update reaction role %s: %s", role.id, exc)
+        except Exception as exc:
+            logger.warning("Could not update reaction role %s: %s", role.id, exc)
 
 
 async def ensure_platform_role_icons(guild: discord.Guild) -> None:
@@ -485,7 +508,9 @@ async def ensure_platform_role_icons(guild: discord.Guild) -> None:
 
 
 async def ensure_developer_role_name(guild: discord.Guild) -> None:
-    """Rename the existing Developer role to include the server's :dev: emoji."""
+    """Keep Mod Dev clean and apply the :dev: emoji as the actual role icon."""
+    import aiohttp
+
     role = _role(guild, DEVELOPER_ROLE_NAME) or _role(guild, "Developer") or _role(guild, "💻 Developer")
     if role is None:
         logger.warning("Mod Dev/Developer role not found in guild %s; leaving roles unchanged.", guild.id)
@@ -500,16 +525,31 @@ async def ensure_developer_role_name(guild: discord.Guild) -> None:
         )
         return
 
-    target_name = f"{emoji} {DEVELOPER_ROLE_NAME}"
-    if role.name == target_name:
-        return
     try:
-        await role.edit(
-            name=target_name,
-            reason="RAVN Server Manager Developer role emoji naming",
-        )
-    except (discord.Forbidden, discord.HTTPException):
-        logger.exception("Could not rename Developer role %s", role.id)
+        if role.name != DEVELOPER_ROLE_NAME:
+            await role.edit(
+                name=DEVELOPER_ROLE_NAME,
+                reason="RAVN Server Manager Developer role naming",
+            )
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(str(emoji.url)) as response:
+                if response.status == 200:
+                    icon_bytes = await response.read()
+                    await role.edit(
+                        icon=icon_bytes,
+                        reason="RAVN Server Manager Developer role icon",
+                    )
+                else:
+                    logger.warning(
+                        "Could not download :%s: for Developer role: HTTP %s",
+                        emoji.name,
+                        response.status,
+                    )
+    except (discord.Forbidden, discord.HTTPException) as exc:
+        logger.warning("Could not update Developer role %s: %s", role.id, exc)
+    except Exception as exc:
+        logger.warning("Could not update Developer role %s: %s", role.id, exc)
 
 
 async def ensure_developer_role(guild: discord.Guild, result: SetupResult) -> discord.Role:
