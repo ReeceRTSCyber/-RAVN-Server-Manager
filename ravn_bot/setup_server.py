@@ -401,19 +401,38 @@ async def _apply_role_icon(role: discord.Role, icon: str | int) -> None:
         logger.warning("Could not set role icon for %s: %s", role.name, exc)
 
 
-async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[str, discord.Role]:
-    """Create/update the self-assignable ping roles used by the role panel.
+REACTION_ROLE_DISPLAY = {
+    "PS5": {"role_id": 1550662095337558076, "emoji_name": "PS4", "label": "PS5"},
+    "PC": {"role_id": 1550662096549711936, "emoji_name": "Pc", "label": "PC"},
+    "Xbox": {"role_id": 1550662098697330819, "emoji_name": "Xbox", "label": "Xbox"},
+    "Golem Ping": {"role_id": 1550662112655712388, "emoji_name": "B_golem", "label": "Golem Ping"},
+    "Event Crate Ping": {"role_id": 1550662111049416806, "emoji_name": "Vault", "label": "Event Crate Ping"},
+    "Event Dino Ping": {"role_id": 1550662110269145109, "emoji_name": "trex", "label": "Event Dino Ping"},
+    "Rollback Ping": {"role_id": 1550662107954024579, "emoji_name": "h_loading", "label": "Rollback Ping"},
+}
 
-    The role names keep their existing emojis, and each ping role also gets
-    the matching emoji as its actual Discord role icon.
-    """
+
+async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[str, discord.Role]:
+    """Create/update the self-assignable ping roles used by the role panel."""
     from .config import PING_ROLE_NAMES
 
     roles: dict[str, discord.Role] = {}
     mentionable = set(PING_ROLE_NAMES)
 
     for name in PING_ROLE_NAMES:
-        existing = _role(guild, name)
+        display = next(
+            (item for item in REACTION_ROLE_DISPLAY.values() if item["label"] == name.split(" ", 1)[-1]),
+            None,
+        )
+        existing = None
+        for item in REACTION_ROLE_DISPLAY.values():
+            if item["label"] == name.split(" ", 1)[-1]:
+                existing = guild.get_role(item["role_id"])
+                if existing:
+                    break
+
+        if existing is None:
+            existing = _role(guild, name)
 
         if existing:
             roles[name] = existing
@@ -427,10 +446,33 @@ async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[s
             roles[name] = created
             result.roles_created += 1
 
-        # Role icons are managed separately; do not download emoji assets during
-        # /setup-server because those requests can make the interaction time out.
-
     return roles
+
+
+async def ensure_reaction_role_names(guild: discord.Guild) -> None:
+    """Rename the seven reaction roles to use their real custom Discord emojis."""
+    for item in REACTION_ROLE_DISPLAY.values():
+        role = guild.get_role(item["role_id"])
+        if role is None:
+            continue
+        emoji = discord.utils.get(guild.emojis, name=item["emoji_name"])
+        if emoji is None:
+            logger.warning(
+                "Custom emoji :%s: not found in guild %s; leaving role %s unchanged.",
+                item["emoji_name"],
+                guild.id,
+                role.name,
+            )
+            continue
+        target_name = f"{emoji} {item['label']}"
+        if role.name != target_name:
+            try:
+                await role.edit(
+                    name=target_name,
+                    reason="RAVN Server Manager reaction-role naming",
+                )
+            except (discord.Forbidden, discord.HTTPException):
+                logger.exception("Could not rename reaction role %s", role.id)
 
 
 async def ensure_platform_role_icons(guild: discord.Guild) -> None:
@@ -528,6 +570,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     # Role icon updates are intentionally not performed here because they
     # require extra CDN requests and can make the interaction time out.
     await ensure_ping_roles(guild, result)
+    await ensure_reaction_role_names(guild)
 
     # The role-panel channel is fixed by Discord channel ID.
     ROLE_PANEL_CHANNEL_ID = 1550676747471818754
