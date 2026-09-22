@@ -500,7 +500,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     for candidate in guild.text_channels:
         try:
             async for message in candidate.history(limit=50):
-                if message.author != guild.me or not message.embeds:
+                if not message.embeds:
                     continue
                 embed_title = message.embeds[0].title or ""
                 footer_text = message.embeds[0].footer.text or ""
