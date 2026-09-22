@@ -49,6 +49,7 @@ LOGO_ASSET_PATH = (
 LOGO_FILENAME = "ravn-logo.png"
 
 DEVELOPER_ROLE_NAME = "Developer"
+DEVELOPER_ROLE_EMOJI_NAME = "dev"
 DEVELOPER_ROLE_ICON_EMOJI_ID = "1551809255496089671"
 
 PING_ROLE_ICONS = {
@@ -483,6 +484,34 @@ async def ensure_platform_role_icons(guild: discord.Guild) -> None:
             await _apply_role_icon(role, emoji_id)
 
 
+async def ensure_developer_role_name(guild: discord.Guild) -> None:
+    """Rename the existing Developer role to include the server's :dev: emoji."""
+    role = _role(guild, DEVELOPER_ROLE_NAME)
+    if role is None:
+        logger.warning("Developer role not found in guild %s; leaving roles unchanged.", guild.id)
+        return
+
+    emoji = discord.utils.get(guild.emojis, name=DEVELOPER_ROLE_EMOJI_NAME)
+    if emoji is None:
+        logger.warning(
+            "Custom emoji :%s: not found in guild %s; leaving Developer role unchanged.",
+            DEVELOPER_ROLE_EMOJI_NAME,
+            guild.id,
+        )
+        return
+
+    target_name = f"{emoji} {DEVELOPER_ROLE_NAME}"
+    if role.name == target_name:
+        return
+    try:
+        await role.edit(
+            name=target_name,
+            reason="RAVN Server Manager Developer role emoji naming",
+        )
+    except (discord.Forbidden, discord.HTTPException):
+        logger.exception("Could not rename Developer role %s", role.id)
+
+
 async def ensure_developer_role(guild: discord.Guild, result: SetupResult) -> discord.Role:
     """Create/update the Developer role with the requested Discord emoji as its role icon."""
     existing = _role(guild, DEVELOPER_ROLE_NAME) or _role(guild, "💻 Developer")
@@ -571,6 +600,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     # require extra CDN requests and can make the interaction time out.
     await ensure_ping_roles(guild, result)
     await ensure_reaction_role_names(guild)
+    await ensure_developer_role_name(guild)
 
     # The role-panel channel is fixed by Discord channel ID.
     ROLE_PANEL_CHANNEL_ID = 1550676747471818754
