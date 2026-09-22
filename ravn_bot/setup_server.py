@@ -483,7 +483,9 @@ async def ensure_developer_role(guild: discord.Guild, result: SetupResult) -> di
 
 
 async def _available_role_emojis(guild: discord.Guild) -> dict[str, object]:
-    """Return usable custom emojis, falling back to Unicode if an ID is invalid/unavailable."""
+    """Resolve the configured custom emojis by name from this guild."""
+    from .role_selection import REACTION_ROLE_EMOJI_NAMES
+
     fallbacks = {
         "PS5": "🎮",
         "PC": "🖥️",
@@ -494,18 +496,24 @@ async def _available_role_emojis(guild: discord.Guild) -> dict[str, object]:
         "Rollback Ping": "🔄",
     }
     available: dict[str, object] = {}
-    for name, emoji in REACTION_ROLE_EMOJIS.items():
-        try:
-            fetched = await guild.fetch_emoji(emoji.id)
-            available[name] = fetched
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+    for role_key, emoji_name in REACTION_ROLE_EMOJI_NAMES.items():
+        emoji = discord.utils.get(guild.emojis, name=emoji_name)
+        if emoji is None:
             logger.warning(
-                "Custom emoji %s (%s) is unavailable to this bot; using %s instead.",
-                name,
-                emoji.id,
-                fallbacks[name],
+                "Custom emoji :%s: not found in guild %s; using %s instead.",
+                emoji_name,
+                guild.id,
+                fallbacks[role_key],
             )
-            available[name] = fallbacks[name]
+            available[role_key] = fallbacks[role_key]
+        else:
+            available[role_key] = emoji
+            logger.info(
+                "Resolved reaction-role emoji %s as :%s: (%s).",
+                role_key,
+                emoji.name,
+                emoji.id,
+            )
     return available
 
 
