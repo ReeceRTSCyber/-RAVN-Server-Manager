@@ -345,8 +345,7 @@ async def _seed_embed(
     try:
         async for message in channel.history(limit=30):
             if (
-                message.author == channel.guild.me
-                and message.embeds
+                message.embeds
                 and message.embeds[0].footer.text
                 and marker in message.embeds[0].footer.text
                 and (titles is None or message.embeds[0].title in titles)
@@ -490,9 +489,10 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     server's categories/channels and all non-ping roles are left untouched.
     """
     result = SetupResult()
+    # Keep /setup-server fast and focused: role-panel refresh only.
+    # Role icon updates are intentionally not performed here because they
+    # require extra CDN requests and can make the interaction time out.
     await ensure_ping_roles(guild, result)
-    await ensure_platform_role_icons(guild)
-    await ensure_developer_role(guild, result)
 
     # The role-panel channel is fixed by Discord channel ID.
     ROLE_PANEL_CHANNEL_ID = 1550676747471818754
