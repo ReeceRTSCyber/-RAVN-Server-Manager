@@ -494,15 +494,24 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     await ensure_platform_role_icons(guild)
     await ensure_developer_role(guild, result)
 
-    role_channel = discord.utils.find(
-        lambda item: (
-            item.name in {"🎭・role-selection", "🎭・roles"}
-            or item.name.endswith("・roles")
-            or item.name.endswith("-roles")
-            or item.name == "roles"
-        ),
-        guild.text_channels,
-    )
+    # Find the existing RAVN role-panel channel by its bot-authored embeds.
+    # This avoids depending on the channel's exact display name.
+    role_channel = None
+    for candidate in guild.text_channels:
+        try:
+            async for message in candidate.history(limit=50):
+                if message.author != guild.me or not message.embeds:
+                    continue
+                embed_title = message.embeds[0].title or ""
+                footer_text = message.embeds[0].footer.text or ""
+                if "RAVN Server Manager" in footer_text and embed_title in {"PING ROLES", "MISC ROLES", "🎭 Choose Your Roles"}:
+                    role_channel = candidate
+                    break
+        except (discord.Forbidden, discord.HTTPException):
+            continue
+        if role_channel:
+            break
+
     if role_channel:
         bot_image_url = str(guild.me.display_avatar.url) if guild.me else None
         setup_image_url = "attachment://ravn-logo.png" if LOGO_ASSET_PATH.is_file() else bot_image_url
