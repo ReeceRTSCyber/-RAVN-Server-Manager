@@ -495,7 +495,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
     await ensure_developer_role(guild, result)
 
     role_channel = discord.utils.find(
-        lambda item: item.name == "🎭・role-selection",
+        lambda item: item.name in {"🎭・role-selection", "🎭・roles"},
         guild.text_channels,
     )
     if role_channel:
