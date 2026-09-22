@@ -513,6 +513,16 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
         ):
             result.messages_seeded += 1
 
+        if await _seed_embed(
+            role_channel,
+            misc_roles_embed(),
+            MiscRoleView(),
+            titles={"MISC ROLES"},
+            image_url=setup_image_url,
+            image_path=setup_image_path,
+        ):
+            result.messages_seeded += 1
+
     return result
 
 
