@@ -10,16 +10,20 @@ from .embeds import ARK_BLUE, brand_embed, ravn_embed
 logger = logging.getLogger(__name__)
 
 
-# Custom Discord emoji IDs supplied for the reaction-role buttons.
-REACTION_ROLE_EMOJIS = {
-    "PS5": discord.PartialEmoji(name="PS5", id=1551557280581816461),
-    "Xbox": discord.PartialEmoji(name="Xbox", id=1551557335422603306),
-    "PC": discord.PartialEmoji(name="PC", id=1551557384881705004),
-    "Golem Ping": discord.PartialEmoji(name="golem", id=1551461825806209086),
-    "Event Crate Ping": discord.PartialEmoji(name="event_crate", id=1551557177892671529),
-    "Event Dino Ping": discord.PartialEmoji(name="event_dino", id=1551557466188152964),
-    "Rollback Ping": discord.PartialEmoji(name="rollback", id=1551462057965264937),
+# Custom Discord emoji names used for the reaction-role buttons.
+# setup_server.py resolves these names to the current IDs in the guild.
+REACTION_ROLE_EMOJI_NAMES = {
+    "PS5": "PS4",
+    "PC": "Pc",
+    "Xbox": "Xbox",
+    "Golem Ping": "B_golem",
+    "Event Crate Ping": "Vault",
+    "Event Dino Ping": "trex",
+    "Rollback Ping": "h_loading",
 }
+
+# Kept for compatibility with any code importing this mapping.
+REACTION_ROLE_EMOJIS: dict[str, discord.PartialEmoji] = {}
 
 # Actual Discord role IDs paired with the custom reaction-role emojis.
 REACTION_ROLE_IDS = {
@@ -183,7 +187,7 @@ class PingRoleView(discord.ui.View):
             (
                 "Rollback Ping",
                 PING_ROLE_NAMES[2],
-                emoji_overrides.get("Rollback Ping", REACTION_ROLE_EMOJIS["Rollback Ping"]),
+                emoji_overrides.get("Rollback Ping", "🔄"),
                 REACTION_ROLE_IDS["Rollback Ping"],
             ),
             (
@@ -195,19 +199,19 @@ class PingRoleView(discord.ui.View):
             (
                 "Event Dino Ping",
                 PING_ROLE_NAMES[4],
-                emoji_overrides.get("Event Dino Ping", REACTION_ROLE_EMOJIS["Event Dino Ping"]),
+                emoji_overrides.get("Event Dino Ping", "🦖"),
                 REACTION_ROLE_IDS["Event Dino Ping"],
             ),
             (
                 "Event Crate Ping",
                 PING_ROLE_NAMES[5],
-                emoji_overrides.get("Event Crate Ping", REACTION_ROLE_EMOJIS["Event Crate Ping"]),
+                emoji_overrides.get("Event Crate Ping", "🔻"),
                 REACTION_ROLE_IDS["Event Crate Ping"],
             ),
             (
                 "Golem Ping",
                 PING_ROLE_NAMES[6],
-                emoji_overrides.get("Golem Ping", REACTION_ROLE_EMOJIS["Golem Ping"]),
+                emoji_overrides.get("Golem Ping", "🪨"),
                 REACTION_ROLE_IDS["Golem Ping"],
             ),
             (
@@ -252,19 +256,19 @@ class MiscRoleView(discord.ui.View):
             (
                 "PS5",
                 PLATFORM_ROLE_NAMES[0],
-                emoji_overrides.get("PS5", REACTION_ROLE_EMOJIS["PS5"]),
+                emoji_overrides.get("PS5", "🎮"),
                 REACTION_ROLE_IDS["PS5"],
             ),
             (
                 "PC",
                 PLATFORM_ROLE_NAMES[1],
-                emoji_overrides.get("PC", REACTION_ROLE_EMOJIS["PC"]),
+                emoji_overrides.get("PC", "🖥️"),
                 REACTION_ROLE_IDS["PC"],
             ),
             (
                 "Xbox",
                 PLATFORM_ROLE_NAMES[2],
-                emoji_overrides.get("Xbox", REACTION_ROLE_EMOJIS["Xbox"]),
+                emoji_overrides.get("Xbox", "🟢"),
                 REACTION_ROLE_IDS["Xbox"],
             ),
             (
