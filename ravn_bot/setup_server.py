@@ -426,9 +426,8 @@ async def ensure_ping_roles(guild: discord.Guild, result: SetupResult) -> dict[s
             roles[name] = created
             result.roles_created += 1
 
-        icon_emoji = PING_ROLE_ICONS.get(name)
-        if icon_emoji:
-            await _apply_role_icon(roles[name], icon_emoji)
+        # Role icons are managed separately; do not download emoji assets during
+        # /setup-server because those requests can make the interaction time out.
 
     return roles
 
@@ -505,25 +504,27 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
         setup_image_url = "attachment://ravn-logo.png" if LOGO_ASSET_PATH.is_file() else bot_image_url
         setup_image_path = LOGO_ASSET_PATH if LOGO_ASSET_PATH.is_file() else None
 
-        if await _seed_embed(
-            role_channel,
-            ping_roles_embed(),
-            PingRoleView(),
-            titles={"PING ROLES", "🎭 Choose Your Roles"},
-            image_url=setup_image_url,
-            image_path=setup_image_path,
-        ):
-            result.messages_seeded += 1
-
-        if await _seed_embed(
-            role_channel,
-            misc_roles_embed(),
-            MiscRoleView(),
-            titles={"MISC ROLES"},
-            image_url=setup_image_url,
-            image_path=setup_image_path,
-        ):
-            result.messages_seeded += 1
+        # Post fresh panels with the current persistent views. We intentionally
+        # avoid scanning message history here because the old panel messages
+        # can be inaccessible/slow to fetch on mobile-managed servers.
+        try:
+            if setup_image_path and setup_image_path.is_file():
+                await role_channel.send(
+                    embed=brand_embed(ping_roles_embed(), setup_image_url),
+                    view=PingRoleView(),
+                    file=discord.File(str(setup_image_path), filename=LOGO_FILENAME),
+                )
+                await role_channel.send(
+                    embed=brand_embed(misc_roles_embed(), setup_image_url),
+                    view=MiscRoleView(),
+                    file=discord.File(str(setup_image_path), filename=LOGO_FILENAME),
+                )
+            else:
+                await role_channel.send(embed=ping_roles_embed(setup_image_url), view=PingRoleView())
+                await role_channel.send(embed=misc_roles_embed(setup_image_url), view=MiscRoleView())
+            result.messages_seeded += 2
+        except (discord.Forbidden, discord.HTTPException):
+            logger.exception("Could not post refreshed role panels in channel %s", role_channel.id)
 
     return result
 
