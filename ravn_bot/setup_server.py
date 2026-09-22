@@ -33,6 +33,7 @@ from .embeds import (
 from .role_selection import (
     MiscRoleView,
     PingRoleView,
+    REACTION_ROLE_EMOJIS,
     misc_roles_embed,
     ping_roles_embed,
 )
@@ -481,6 +482,33 @@ async def ensure_developer_role(guild: discord.Guild, result: SetupResult) -> di
     return role
 
 
+async def _available_role_emojis(guild: discord.Guild) -> dict[str, object]:
+    """Return usable custom emojis, falling back to Unicode if an ID is invalid/unavailable."""
+    fallbacks = {
+        "PS5": "🎮",
+        "PC": "🖥️",
+        "Xbox": "🟢",
+        "Golem Ping": "🪨",
+        "Event Crate Ping": "🔻",
+        "Event Dino Ping": "🦖",
+        "Rollback Ping": "🔄",
+    }
+    available: dict[str, object] = {}
+    for name, emoji in REACTION_ROLE_EMOJIS.items():
+        try:
+            fetched = await guild.fetch_emoji(emoji.id)
+            available[name] = fetched
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            logger.warning(
+                "Custom emoji %s (%s) is unavailable to this bot; using %s instead.",
+                name,
+                emoji.id,
+                fallbacks[name],
+            )
+            available[name] = fallbacks[name]
+    return available
+
+
 async def provision_guild(guild: discord.Guild) -> SetupResult:
     """Set up only the RAVN ping roles and refresh the existing ping panel.
 
@@ -500,6 +528,7 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
         role_channel = None
 
     if role_channel:
+        emoji_overrides = await _available_role_emojis(guild)
         bot_image_url = str(guild.me.display_avatar.url) if guild.me else None
         setup_image_url = "attachment://ravn-logo.png" if LOGO_ASSET_PATH.is_file() else bot_image_url
         setup_image_path = LOGO_ASSET_PATH if LOGO_ASSET_PATH.is_file() else None
@@ -511,17 +540,17 @@ async def provision_guild(guild: discord.Guild) -> SetupResult:
             if setup_image_path and setup_image_path.is_file():
                 await role_channel.send(
                     embed=brand_embed(ping_roles_embed(), setup_image_url),
-                    view=PingRoleView(),
+                    view=PingRoleView(emoji_overrides),
                     file=discord.File(str(setup_image_path), filename=LOGO_FILENAME),
                 )
                 await role_channel.send(
                     embed=brand_embed(misc_roles_embed(), setup_image_url),
-                    view=MiscRoleView(),
+                    view=MiscRoleView(emoji_overrides),
                     file=discord.File(str(setup_image_path), filename=LOGO_FILENAME),
                 )
             else:
-                await role_channel.send(embed=ping_roles_embed(setup_image_url), view=PingRoleView())
-                await role_channel.send(embed=misc_roles_embed(setup_image_url), view=MiscRoleView())
+                await role_channel.send(embed=ping_roles_embed(setup_image_url), view=PingRoleView(emoji_overrides))
+                await role_channel.send(embed=misc_roles_embed(setup_image_url), view=MiscRoleView(emoji_overrides))
             result.messages_seeded += 2
         except (discord.Forbidden, discord.HTTPException):
             logger.exception("Could not post refreshed role panels in channel %s", role_channel.id)
